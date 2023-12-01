@@ -11,15 +11,15 @@ import (
 type JwtUtil struct{}
 
 type Claims struct {
-	Username string
-	Role     string
+	Email string
+	Role  string
 	*jwt.StandardClaims
 }
 
-func (j *JwtUtil) CreateToken(username string, role string) (string, error) {
+func (j *JwtUtil) CreateToken(email string, role string) (string, error) {
 	claims := &Claims{
-		Username: username,
-		Role:     role,
+		Email: email,
+		Role:  role,
 		StandardClaims: &jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(60 * time.Minute).Unix(),
 		},
@@ -58,9 +58,11 @@ func (j *JwtUtil) ValidateToken(role string) gin.HandlerFunc {
 			})
 			return
 		}
+		c.Set("email", claims.Email)
 		c.Next()
 	}
 }
+
 
 func NewJwtUtil() *JwtUtil {
 	return &JwtUtil{}

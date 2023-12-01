@@ -20,19 +20,24 @@ func (uh *UserHandler) RegisterUser(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to register the user",
+			"data":    err.Error(),
 		})
 		c.Abort()
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"data": user,
+		"status":  "Success",
+		"message": "User registered successfully",
+		"data":    user,
 	})
 }
 
 func (uh *UserHandler) Home(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"message": "You are logged in",
+		"status":  "Success",
+		"message": "Welcome to home page",
 	})
 }
 
@@ -44,13 +49,17 @@ func (uh *UserHandler) Login(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "User login failed",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{
-		"token": token,
+		"message": "User logged in successfully",
+		"status":  "Success",
+		"data":    token,
 	})
 }
 

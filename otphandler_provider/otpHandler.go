@@ -1,4 +1,4 @@
-package otphandler
+package otphandlerprovider
 
 import (
 	"context"
@@ -34,22 +34,23 @@ func InitRedis() {
 
 }
 
-type otpUser struct {
-	Otp  string         `json:"otp"`
-	User *entities.User `json:"user"`
+type otpProvider struct {
+	Otp      string                    `json:"otp"`
+	Provider *entities.ServiceProvider `json:"provider"`
 }
 type OtpHandler struct {
-	user interfaces.UserService
+	provider interfaces.ProviderService
 }
 
 func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
-	user := &entities.User{}
-	c.BindJSON(user)
+	provider := &entities.ServiceProvider{}
+	c.BindJSON(provider)
 	// Generate a random 6-digit OTP
+	// fmt.Println("Reached here")
 	otp := generateRandomOTP(6)
-	otpData := otpUser{
-		Otp:  otp,
-		User: user,
+	otpData := otpProvider{
+		Otp:      otp,
+		Provider: provider,
 	}
 	data, err := json.Marshal(otpData)
 	if err != nil {
@@ -58,7 +59,9 @@ func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 		})
 		return
 	}
-	if err := rdb.Set(ctx, user.Email, data, 5*time.Minute).Err(); err != nil {
+	fmt.Print(rdb)
+	// Store the OTP in Redis with an expiration time (e.g., 5 minutes)
+	if err := rdb.Set(ctx, provider.Email, data, 5*time.Minute).Err(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "couldn't share data to redis-otp" + err.Error(),
 		})
@@ -71,13 +74,13 @@ func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 	// 	return
 	// }
 
-	if err = sendOTPEmail(user.Email, otp); err != nil {
+	if err = sendOTPEmail(provider.Email, otp); err != nil {
 		c.JSON(http.StatusAccepted, gin.H{
 			"message": "couldn't send otp" + err.Error(),
 		})
 	}
 	c.JSON(http.StatusAccepted, gin.H{
-		"message": "otp has been sent to " + user.Email,
+		"message": "otp has been sent to " + provider.Email,
 	})
 
 }
@@ -90,18 +93,21 @@ func generateRandomOTP(length int) string {
 	for i := range otp {
 		otp[i] = characters[rand.Intn(len(characters))]
 	}
-	fmt.Print(string(otp))
+	fmt.Println(otp)
 	return string(otp)
 }
 
 func sendOTPEmail(recipientEmail, otp string) error {
+	// Create an email message
 	m := gomail.NewMessage()
 	m.SetHeader("From", os.Getenv("EMAIL"))
 	m.SetHeader("To", recipientEmail)
 	m.SetHeader("Subject", "Your OTP")
 
+	// Set the OTP as the email body
 	m.SetBody("text/plain", "Your OTP: "+otp)
 
+	// Send the email using an SMTP server
 	d := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("EMAIL"), os.Getenv("APP_PASSWORD"))
 
 	if err := d.DialAndSend(m); err != nil {
@@ -117,6 +123,7 @@ type verifyOTP struct {
 }
 
 func (oh *OtpHandler) VerifyOTP(c *gin.Context) {
+	// Retrieve the stored OTP from Redis
 	emailotp := &verifyOTP{}
 	c.BindJSON(emailotp)
 	serializedData, err := rdb.Get(ctx, emailotp.Email).Result()
@@ -124,7 +131,7 @@ func (oh *OtpHandler) VerifyOTP(c *gin.Context) {
 		log.Print("Unable get from redis")
 		return
 	}
-	var retrievedStruct *otpUser
+	var retrievedStruct *otpProvider
 	err = json.Unmarshal([]byte(serializedData), &retrievedStruct)
 	if err != nil {
 		log.Print("Unable unmarshal the data")
@@ -138,7 +145,7 @@ func (oh *OtpHandler) VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	user, err := oh.user.RegisterUser(retrievedStruct.User)
+	provider, err := oh.provider.RegisterProvider(retrievedStruct.Provider)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -148,12 +155,12 @@ func (oh *OtpHandler) VerifyOTP(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"data": user,
+		"data": provider,
 	})
 }
 
-func NewotpHandler(userService interfaces.UserService) *OtpHandler {
+func NewotpHandler(providerService interfaces.ProviderService) *OtpHandler {
 	return &OtpHandler{
-		user: userService,
+		provider: providerService,
 	}
 }

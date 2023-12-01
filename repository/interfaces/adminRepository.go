@@ -22,4 +22,5 @@ type AdminRepository interface {
 	EditStation(id int, station *entities.Stations) (*entities.Stations, error)
 	DeleteStation(id int) (*entities.Stations, error)
 	AddStation(station *entities.Stations) (*entities.Stations, error)
+	Layoutmaker(layout *entities.BusSeatLayout)
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"gobus/dto"
 	"gobus/entities"
 	"gobus/services/interfaces"
@@ -20,12 +21,16 @@ func (ah *AdminHandler) Login(c *gin.Context) {
 	token, err := ah.admin.Login(LoginRequest)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to login",
+			"data":    err.Error(),
 		})
 		return
 	}
 	c.JSON(http.StatusAccepted, gin.H{
-		"token": token,
+		"status":  "Success",
+		"message": "Admin logged in successfully",
+		"data":    token,
 	})
 }
 func (ah *AdminHandler) FindUser(c *gin.Context) {
@@ -33,32 +38,42 @@ func (ah *AdminHandler) FindUser(c *gin.Context) {
 	userID, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
 			"message": "Invalid user ID",
+			"data":    err.Error(),
 		})
 		return
 	}
 	user, err := ah.admin.FindUser(userID)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to find the user",
+			"data":    err.Error(),
 		})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"data": user,
+		"status":  "Success",
+		"message": "User has been found",
+		"data":    user,
 	})
 }
 func (ah *AdminHandler) FindAllUsers(c *gin.Context) {
 	users, err := ah.admin.FindAllUsers()
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to fetch the users",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusFound, gin.H{
-		"data": users,
+		"status":  "Success",
+		"message": "Users has been found",
+		"data":    users,
 	})
 }
 func (ah *AdminHandler) UpdateUser(c *gin.Context) {
@@ -66,7 +81,9 @@ func (ah *AdminHandler) UpdateUser(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid user ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
@@ -74,7 +91,9 @@ func (ah *AdminHandler) UpdateUser(c *gin.Context) {
 	err = c.BindJSON(user)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to bind the user data",
+			"data":    err.Error(),
 		})
 		return
 	}
@@ -82,13 +101,17 @@ func (ah *AdminHandler) UpdateUser(c *gin.Context) {
 	user, err = ah.admin.UpdateUser(idInt, *user)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"ERROR": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to update the user",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": user,
+		"status":  "Success",
+		"message": "User updated successfully",
+		"data":    user,
 	})
 }
 func (ah *AdminHandler) DeleteUser(c *gin.Context) {
@@ -96,20 +119,26 @@ func (ah *AdminHandler) DeleteUser(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "",
+			"data":    err.Error(),
 		})
 		return
 	}
 	user, err := ah.admin.DeleteUser(idInt)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to delete the user",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{
-		"data": user,
+		"status":  "Success",
+		"message": "User has been deleted successfully",
+		"data":    user,
 	})
 }
 func (ah *AdminHandler) BlockUser(c *gin.Context) {
@@ -117,20 +146,26 @@ func (ah *AdminHandler) BlockUser(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid user ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
 	user, err := ah.admin.BlockUser(idInt)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to block the user",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": user,
+		"status":  "Success",
+		"message": "User has been blocked",
+		"data":    user,
 	})
 }
 func (ah *AdminHandler) UnBlockUser(c *gin.Context) {
@@ -138,20 +173,26 @@ func (ah *AdminHandler) UnBlockUser(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid user ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
-	user, err := ah.admin.UnBlockProvider(idInt)
+	user, err := ah.admin.UnBlockUser(idInt)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to unblock the user",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": user,
+		"status":  "Success",
+		"message": "User has been unblocked successfully",
+		"data":    user,
 	})
 }
 func (ah *AdminHandler) FindProvider(c *gin.Context) {
@@ -159,32 +200,42 @@ func (ah *AdminHandler) FindProvider(c *gin.Context) {
 	providerID, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"message": "Invalid provider ID",
+			"status":  "Failed",
+			"message": "Invalid provider ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
 	provider, err := ah.admin.FindProvider(providerID)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to fetch the providers",
+			"data":    err.Error(),
 		})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"data": provider,
+		"status":  "Success",
+		"message": "Provider has been found successfully",
+		"data":    provider,
 	})
 }
 func (ah *AdminHandler) FindAllProvider(c *gin.Context) {
 	providers, err := ah.admin.FindAllProvider()
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to find the providers",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusFound, gin.H{
-		"data": providers,
+		"status":  "Success",
+		"message": "Successfully found the providers",
+		"data":    providers,
 	})
 }
 func (ah *AdminHandler) UpdateProvider(c *gin.Context) {
@@ -192,7 +243,9 @@ func (ah *AdminHandler) UpdateProvider(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid provider ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
@@ -200,7 +253,9 @@ func (ah *AdminHandler) UpdateProvider(c *gin.Context) {
 	err = c.BindJSON(provider)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to bind the provider info",
+			"data":    err.Error(),
 		})
 		return
 	}
@@ -208,13 +263,17 @@ func (ah *AdminHandler) UpdateProvider(c *gin.Context) {
 	provider, err = ah.admin.UpdateProvider(idInt, *provider)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"ERROR": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to update the provider info",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": provider,
+		"status":  "Success",
+		"message": "Successfully updated the provider info",
+		"data":    provider,
 	})
 }
 func (ah *AdminHandler) DeleteProvider(c *gin.Context) {
@@ -222,20 +281,26 @@ func (ah *AdminHandler) DeleteProvider(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid provider ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
 	provider, err := ah.admin.DeleteProvider(idInt)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to delete the provider",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{
-		"data": provider,
+		"status":  "Success",
+		"message": "Provider deleted successfuly",
+		"data":    provider,
 	})
 }
 func (ah *AdminHandler) BlockProvider(c *gin.Context) {
@@ -243,20 +308,26 @@ func (ah *AdminHandler) BlockProvider(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid provider ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
 	provider, err := ah.admin.BlockProvider(idInt)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to block the provider",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": provider,
+		"status":  "Success",
+		"message": "Succussfully blocked the provider",
+		"data":    provider,
 	})
 }
 func (ah *AdminHandler) UnBlockProvider(c *gin.Context) {
@@ -264,20 +335,26 @@ func (ah *AdminHandler) UnBlockProvider(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid provider ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
 	provider, err := ah.admin.UnBlockProvider(idInt)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to unblock the provider",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": provider,
+		"status":  "Success",
+		"message": "Successfully unblocked the provider",
+		"data":    provider,
 	})
 }
 func (ah *AdminHandler) FindStation(c *gin.Context) {
@@ -285,46 +362,61 @@ func (ah *AdminHandler) FindStation(c *gin.Context) {
 	stationID, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
 			"message": "Invalid station ID",
+			"data":    err.Error(),
 		})
 		return
 	}
 	station, err := ah.admin.FindStation(stationID)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to find the station",
+			"data":    err.Error(),
 		})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"data": station,
+		"status":  "Success",
+		"message": "Successfully found the stations",
+		"data":    station,
 	})
 }
 func (ah *AdminHandler) FindStationByName(c *gin.Context) {
 	name := c.Query("name")
+	fmt.Print(name)
 	station, err := ah.admin.FindStationByName(name)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unavble to find the station",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusFound, gin.H{
-		"data": station,
+		"status":  "Success",
+		"message": "Successfully found the station",
+		"data":    station,
 	})
 }
 func (ah *AdminHandler) FindAllStations(c *gin.Context) {
 	stations, err := ah.admin.FindAllStations()
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to find the stations",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusFound, gin.H{
-		"data": stations,
+		"status":  "Success",
+		"message": "Successfully fetched the stations",
+		"data":    stations,
 	})
 }
 func (ah *AdminHandler) UpdateStation(c *gin.Context) {
@@ -332,7 +424,9 @@ func (ah *AdminHandler) UpdateStation(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"message": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid Station ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
@@ -340,7 +434,9 @@ func (ah *AdminHandler) UpdateStation(c *gin.Context) {
 	err = c.BindJSON(station)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to bind station info",
+			"data":    err.Error(),
 		})
 		return
 	}
@@ -348,13 +444,17 @@ func (ah *AdminHandler) UpdateStation(c *gin.Context) {
 	station, err = ah.admin.UpdateStation(idInt, *station)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"ERROR": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to update the station",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"data": station,
+		"status":  "Success",
+		"message": "Successfully updated the station info",
+		"data":    station,
 	})
 }
 func (ah *AdminHandler) DeleteStation(c *gin.Context) {
@@ -362,20 +462,26 @@ func (ah *AdminHandler) DeleteStation(c *gin.Context) {
 	idInt, err := strconv.Atoi(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Invalid station ID provided",
+			"data":    err.Error(),
 		})
 		return
 	}
 	station, err := ah.admin.DeleteStation(idInt)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to delete the station",
+			"data":    err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusAccepted, gin.H{
-		"data": station,
+		"status":  "Success",
+		"message": "Deleted the station successfully",
+		"data":    station,
 	})
 }
 func (ah *AdminHandler) AddStation(c *gin.Context) {
@@ -383,19 +489,25 @@ func (ah *AdminHandler) AddStation(c *gin.Context) {
 	err := c.BindJSON(station)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to bind the station",
+			"data":    err.Error(),
 		})
 		return
 	}
 	addedStation, err := ah.admin.AddStation(station)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
+			"status":  "Failed",
+			"message": "Unable to add station",
+			"data":    err.Error(),
 		})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"data": addedStation,
+		"status":  "Success",
+		"message": "Successfully added the station",
+		"data":    addedStation,
 	})
 
 }

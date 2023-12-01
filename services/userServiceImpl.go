@@ -6,7 +6,11 @@ import (
 	"gobus/entities"
 	"gobus/middleware"
 	repository "gobus/repository/interfaces"
+	"gobus/services/interfaces"
+	"gobus/utils"
 	"log"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserServiceImpl struct {
@@ -20,15 +24,22 @@ func (usi *UserServiceImpl) Login(login *dto.LoginRequest) (string, error) {
 		log.Println("No USER EXISTS, in adminService file")
 		return "", errors.New("no User exists")
 	}
+	dbHashedPassword := user.Password // Replace with the actual hashed password.
 
-	if user.Password != login.Password {
+	enteredPassword := login.Password // Replace with the password entered by the user during login.
+
+	if err := bcrypt.CompareHashAndPassword([]byte(dbHashedPassword), []byte(enteredPassword)); err != nil {
+		// Passwords match. Allow the user to log in.
 		log.Println("Password Mismatch, in adminService file")
 		return "", errors.New("password Mismatch")
 	}
-
 	if user.Role != "user" {
 		log.Println("Unauthorized, in adminService file")
 		return "", errors.New("unauthorized access")
+	}
+	if user.IsLocked {
+		log.Println("User locked by Admin,Contact admin to unlock the account--- in adminService file")
+		return "", errors.New("locked account")
 	}
 
 	token, err := usi.jwt.CreateToken(login.Email, "user")
@@ -39,6 +50,12 @@ func (usi *UserServiceImpl) Login(login *dto.LoginRequest) (string, error) {
 }
 
 func (usi *UserServiceImpl) RegisterUser(user *entities.User) (*entities.User, error) {
+	if hashedPassword, err := utils.HashPassword(user.Password); err != nil {
+		log.Println("Unable to hash password")
+		return nil, err
+	} else {
+		user.Password = hashedPassword
+	}
 	user, err := usi.repo.RegisterUser(user)
 	if err != nil {
 		log.Println("User not added, adminService file")
@@ -47,7 +64,7 @@ func (usi *UserServiceImpl) RegisterUser(user *entities.User) (*entities.User, e
 	return user, err
 }
 
-func NewUserService(repo repository.UserRepository, jwt *middleware.JwtUtil) *UserServiceImpl {
+func NewUserService(repo repository.UserRepository, jwt *middleware.JwtUtil) interfaces.UserService {
 	return &UserServiceImpl{
 		repo: repo,
 		jwt:  jwt,

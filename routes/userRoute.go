@@ -15,8 +15,8 @@ type UserRouters struct {
 }
 
 func (as *UserRouters) URoutes() {
-	as.router.R.POST("/generate-otp", as.otp.GenerateOTP)
-	as.router.R.POST("/verify-otp", as.otp.VerifyOTP)
+	as.router.R.POST("/create_user", as.otp.GenerateOTP)
+	as.router.R.POST("/verify-user", as.otp.VerifyOTP)
 	// as.router.R.POST("/user/register", as.user.RegisterUser)
 	as.router.R.POST("/user/login", as.user.Login)
 	as.router.R.GET("/user/home", as.jwt.ValidateToken("user"), as.user.Home)

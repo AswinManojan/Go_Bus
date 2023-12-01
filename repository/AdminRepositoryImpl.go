@@ -13,6 +13,11 @@ type AdminRepositoryImpl struct {
 	DB *gorm.DB
 }
 
+// AddSeatLayout implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) Layoutmaker(layout *entities.BusSeatLayout) {
+	ar.DB.Save(layout)
+}
+
 // FindUserByEmail implements interfaces.AdminRepository.
 func (ar *AdminRepositoryImpl) FindUserByEmail(mail string) (*entities.User, error) {
 	if ar.DB == nil {
@@ -75,7 +80,7 @@ func (ar *AdminRepositoryImpl) FindStationByName(name string) (*entities.Station
 		return nil, errors.New("error connecting database")
 	}
 	station := &entities.Stations{}
-	result := ar.DB.Where("name=?", name).First(station)
+	result := ar.DB.Where("station_name=?", name).First(station)
 	if result.Error != nil {
 		log.Println("Station doesn't exist")
 		return nil, errors.New("no station found with this name")
@@ -155,7 +160,7 @@ func (ar *AdminRepositoryImpl) DeleteProvider(id int) (*entities.ServiceProvider
 		log.Println("User Not found")
 		return nil, errors.New("error deleting the user")
 	}
-	ar.DB.Delete(provider).Where("id=?", id)
+	ar.DB.Delete(provider).Where("provider_id=?", id)
 	// ari.DB.Raw("delete from users where id=1")
 	return provider, nil
 }
@@ -171,7 +176,7 @@ func (ar *AdminRepositoryImpl) DeleteStation(id int) (*entities.Stations, error)
 		log.Println("User Not found")
 		return nil, errors.New("error deleting the user")
 	}
-	ar.DB.Delete(station).Where("id=?", id)
+	ar.DB.Delete(station).Where("station_id=?", id)
 	// ari.DB.Raw("delete from users where id=1")
 	return station, nil
 }
@@ -203,22 +208,22 @@ func (ar *AdminRepositoryImpl) EditProvider(id int, provider *entities.ServicePr
 		log.Println("User not found")
 		return nil, errors.New("user not found")
 	}
-	if foundProvider.Address != "" {
+	if provider.Address != "" {
 		foundProvider.Address = provider.Address
 	}
-	if foundProvider.CompanyName != "" {
+	if provider.CompanyName != "" {
 		foundProvider.CompanyName = provider.CompanyName
 	}
-	if foundProvider.Email != "" {
+	if provider.Email != "" {
 		foundProvider.Email = provider.Email
 	}
-	if foundProvider.PhoneNumber != "" {
+	if provider.PhoneNumber != "" {
 		foundProvider.PhoneNumber = provider.PhoneNumber
 	}
 	// if foundProvider.BusCount != provider.BusCount {
 	// 	foundProvider.BusCount = provider.BusCount
 	// }
-	if foundProvider.Password != "" {
+	if provider.Password != "" {
 		foundProvider.Password = provider.Address
 	}
 	result := ar.DB.Save(&foundProvider)
@@ -240,13 +245,13 @@ func (ar *AdminRepositoryImpl) EditStation(id int, station *entities.Stations) (
 		log.Println("User not found")
 		return nil, errors.New("user not found")
 	}
-	if foundStation.Location != "" {
+	if station.Location != "" {
 		foundStation.Location = station.Location
 	}
-	if foundStation.StationCode != "" {
+	if station.StationCode != "" {
 		foundStation.StationCode = station.StationCode
 	}
-	if foundStation.StationName != "" {
+	if station.StationName != "" {
 		foundStation.StationName = station.StationName
 	}
 	result := ar.DB.Save(&foundStation)
@@ -268,22 +273,22 @@ func (ar *AdminRepositoryImpl) EditUser(id int, user *entities.User) (*entities.
 		log.Println("User not found")
 		return nil, errors.New("user not found")
 	}
-	if foundUser.Email != "" {
+	if user.Email != "" {
 		foundUser.Email = user.Email
 	}
-	if foundUser.UserName != "" {
+	if user.UserName != "" {
 		foundUser.UserName = user.UserName
 	}
-	if foundUser.DOB != "" {
+	if user.DOB != "" {
 		foundUser.DOB = user.DOB
 	}
-	if foundUser.Gender != "" {
+	if user.Gender != "" {
 		foundUser.Gender = user.Gender
 	}
-	if foundUser.Password != "" {
+	if user.Password != "" {
 		foundUser.Password = user.Password
 	}
-	if foundUser.PhoneNumber != "" {
+	if user.PhoneNumber != "" {
 		foundUser.PhoneNumber = user.PhoneNumber
 	}
 	foundUser.IsLocked = true

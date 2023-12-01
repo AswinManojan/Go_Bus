@@ -8,6 +8,8 @@ import (
 	repository "gobus/repository/interfaces"
 	service "gobus/services/interfaces"
 	"log"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AdminServiceImpl struct {
@@ -152,7 +154,12 @@ func (as *AdminServiceImpl) Login(loginRequest *dto.LoginRequest) (string, error
 		log.Println("No USER EXISTS, in adminService file")
 		return "", errors.New("no User exists")
 	}
-	if user.Password != loginRequest.Password {
+	dbHashedPassword := user.Password // Replace with the actual hashed password.
+
+	enteredPassword := loginRequest.Password // Replace with the password entered by the user during login.
+
+	if err := bcrypt.CompareHashAndPassword([]byte(dbHashedPassword), []byte(enteredPassword)); err != nil {
+		// Passwords match. Allow the user to log in.
 		log.Println("Password Mismatch, in adminService file")
 		return "", errors.New("password Mismatch")
 	}
