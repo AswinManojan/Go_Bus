@@ -21,7 +21,6 @@ var rdb *redis.Client
 var ctx = context.Background()
 
 func InitRedis() {
-	// Initialize the Redis client
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
@@ -45,7 +44,6 @@ type OtpHandler struct {
 func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 	user := &entities.User{}
 	c.BindJSON(user)
-	// Generate a random 6-digit OTP
 	otp := generateRandomOTP(6)
 	otpData := otpUser{
 		Otp:  otp,

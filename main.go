@@ -1,6 +1,8 @@
 package main
 
-import "gobus/di"
+import (
+	"gobus/di"
+)
 
 func main() {
 	server := di.Init()

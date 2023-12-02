@@ -63,6 +63,98 @@ func (uh *UserHandler) Login(c *gin.Context) {
 	})
 }
 
+func (uh *UserHandler) FindBus(c *gin.Context) {
+	BusRequest := &dto.BusRequest{}
+	c.BindJSON(BusRequest)
+	buses, err := uh.user.FindBus(BusRequest)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Bus not found for this route",
+			"data":    err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "Buses has been found",
+		"status":  "Success",
+		"data":    buses,
+	})
+}
+
+func (uh *UserHandler) AddPassenger(c *gin.Context) {
+	pass := &entities.PassengerInfo{}
+	c.BindJSON(pass)
+	email := c.MustGet("email").(string)
+	passenger, err := uh.user.AddPassenger(pass, email)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to add a new passenger",
+			"data":    err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  "Success",
+		"message": "Successfully added the passenger",
+		"data":    passenger,
+	})
+}
+func (uh *UserHandler) ViewAllPassengers(c *gin.Context) {
+	email := c.MustGet("email").(string)
+	pass, err := uh.user.ViewAllPassengers(email)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to find the passengers",
+			"data":    err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusFound, gin.H{
+		"status":  "Success",
+		"message": "Successfully fetched the passengers",
+		"data":    pass,
+	})
+}
+func (uh *UserHandler) BookSeat(c *gin.Context) {
+	bookreq := &dto.BookingRequest{}
+	c.BindJSON(bookreq)
+	email := c.MustGet("email").(string)
+	booking, err := uh.user.BookSeat(bookreq, email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to book the seat",
+			"data":    err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{
+		"message": "Booked in progress,awaiting payment",
+		"status":  "Success",
+		"data":    booking,
+	})
+}
+func (uh *UserHandler) FindCoupon(c *gin.Context) {
+	coupons, err := uh.user.FindCoupon()
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to find the coupon",
+			"data":    err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusFound, gin.H{
+		"status":  "Success",
+		"message": "Successfully found the coupons",
+		"data":    coupons,
+	})
+}
 func NewUserHandler(userService interfaces.UserService) *UserHandler {
 	return &UserHandler{
 		user: userService,

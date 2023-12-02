@@ -53,6 +53,8 @@ func (ar *AdminRouters) Routes() {
 		adminGroup.DELETE("/user_management/remove/:id", ar.admin.DeleteUser)
 		adminGroup.DELETE("/provider_management/remove/:id", ar.admin.DeleteProvider)
 		adminGroup.DELETE("/stations/remove/:id", ar.admin.DeleteStation)
+		adminGroup.POST("/busschedule/addtochart", ar.admin.AddBusSchedule)
+		adminGroup.POST("/busschedule/addbasefare", ar.admin.AddBaseFare)
 	}
 	// adminGroup.POST("/login", ar.admin.Login)
 }

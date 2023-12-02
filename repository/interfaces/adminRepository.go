@@ -1,6 +1,9 @@
 package interfaces
 
-import "gobus/entities"
+import (
+	"gobus/dto"
+	"gobus/entities"
+)
 
 type AdminRepository interface {
 	FindUserById(id int) (*entities.User, error)
@@ -22,5 +25,6 @@ type AdminRepository interface {
 	EditStation(id int, station *entities.Stations) (*entities.Stations, error)
 	DeleteStation(id int) (*entities.Stations, error)
 	AddStation(station *entities.Stations) (*entities.Stations, error)
-	Layoutmaker(layout *entities.BusSeatLayout)
+	AddBusSchedule(schedule *dto.BusSchedule) (*entities.BusSchedule, error)
+	AddFareForRoute(baseFare *entities.BaseFare) (*entities.BaseFare, error)
 }

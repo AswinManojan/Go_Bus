@@ -20,6 +20,11 @@ func (as *UserRouters) URoutes() {
 	// as.router.R.POST("/user/register", as.user.RegisterUser)
 	as.router.R.POST("/user/login", as.user.Login)
 	as.router.R.GET("/user/home", as.jwt.ValidateToken("user"), as.user.Home)
+	as.router.R.GET("/user/findbus", as.jwt.ValidateToken("user"), as.user.FindBus)
+	as.router.R.POST("/user/addpassenger", as.jwt.ValidateToken("user"), as.user.AddPassenger)
+	as.router.R.GET("/user/viewallpassenger", as.jwt.ValidateToken("user"), as.user.ViewAllPassengers)
+	as.router.R.POST("/user/bookseat", as.jwt.ValidateToken("user"), as.user.BookSeat)
+	as.router.R.GET("/user/coupon/view", as.jwt.ValidateToken("user"), as.user.FindCoupon)
 }
 
 func NewUserRoutes(a *handlers.UserHandler, server *server.ServerStruct, jwt *middleware.JwtUtil, o *otphandler.OtpHandler) *UserRouters {

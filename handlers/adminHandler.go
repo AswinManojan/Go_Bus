@@ -511,6 +511,59 @@ func (ah *AdminHandler) AddStation(c *gin.Context) {
 	})
 
 }
+func (ah *AdminHandler) AddBaseFare(c *gin.Context) {
+	baseFare := &entities.BaseFare{}
+	err := c.BindJSON(baseFare)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to bind the baseFare",
+			"data":    err.Error(),
+		})
+		return
+	}
+	addedFare, err := ah.admin.AddFareForRoute(baseFare)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to add baseFare",
+			"data":    err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  "Success",
+		"message": "Successfully added the baseFare",
+		"data":    addedFare,
+	})
+
+}
+func (ah *AdminHandler) AddBusSchedule(c *gin.Context) {
+	schedule := &dto.BusSchedule{}
+	err := c.BindJSON(schedule)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to bind the schedule",
+			"data":    err.Error(),
+		})
+		return
+	}
+	addedschedule, err := ah.admin.AddBusSchedule(schedule)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to add schedule",
+			"data":    err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"status":  "Success",
+		"message": "Successfully added the schedule",
+		"data":    addedschedule,
+	})
+}
 
 func NewAdminHandler(adminService interfaces.AdminService) *AdminHandler {
 	return &AdminHandler{

@@ -187,36 +187,46 @@ func (ps *ProviderServiceImpl) FindStationByName(name string) (*entities.Station
 }
 
 // Login implements interfaces.ProviderService.
-func (ps *ProviderServiceImpl) Login(loginRequest *dto.LoginRequest) (string, error) {
+func (ps *ProviderServiceImpl) Login(loginRequest *dto.LoginRequest) (map[string]string, error) {
 
 	foundProvider, err := ps.repo.FindProviderByEmail(loginRequest.Email)
 	if err != nil {
 		log.Println("No Provider EXISTS, in adminService file")
-		return "", errors.New("no Provider exists")
+		return nil, errors.New("no Provider exists")
 	}
-	dbHashedPassword := foundProvider.Password // Replace with the actual hashed password.
+	dbHashedPassword := foundProvider.Password 
 
-	enteredPassword := loginRequest.Password // Replace with the password entered by the user during login.
+	enteredPassword := loginRequest.Password 
 
 	if err := bcrypt.CompareHashAndPassword([]byte(dbHashedPassword), []byte(enteredPassword)); err != nil {
-		// Passwords match. Allow the user to log in.
 		log.Println("Password Mismatch, in adminService file")
-		return "", errors.New("password Mismatch")
+		return nil, errors.New("password Mismatch")
 	}
 	if foundProvider.Role != "provider" {
 		log.Println("Unauthorized, in adminService file")
-		return "", errors.New("unauthorized access")
+		return nil, errors.New("unauthorized access")
 	}
 	if foundProvider.IsLocked {
 		log.Println("User locked by Admin,Contact admin to unlock the account--- in adminService file")
-		return "", errors.New("locked account")
+		return nil, errors.New("locked account")
 	}
-	token, err := ps.jwt.CreateToken(loginRequest.Email, "provider")
+	// token, err := ps.jwt.CreateToken(loginRequest.Email, "provider")
+	// if err != nil {
+	// 	return "", errors.New("token NOT generated")
+	// }
+
+	accessToken, refreshToken, err := ps.jwt.CreateToken(loginRequest.Email, "provider")
 	if err != nil {
-		return "", errors.New("token NOT generated")
+		return nil, errors.New("token pair NOT generated")
 	}
 
-	return token, nil
+	tokenPair := map[string]string{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	}
+
+	return tokenPair, nil
+
 }
 
 // RegisterProvider implements interfaces.ProviderService.

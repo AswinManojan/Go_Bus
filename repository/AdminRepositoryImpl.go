@@ -2,9 +2,12 @@ package repository
 
 import (
 	"errors"
+	"fmt"
+	"gobus/dto"
 	"gobus/entities"
 	"gobus/repository/interfaces"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -13,9 +16,40 @@ type AdminRepositoryImpl struct {
 	DB *gorm.DB
 }
 
-// AddSeatLayout implements interfaces.AdminRepository.
-func (ar *AdminRepositoryImpl) Layoutmaker(layout *entities.BusSeatLayout) {
-	ar.DB.Save(layout)
+// AddFareForRoute implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) AddFareForRoute(baseFare *entities.BaseFare) (*entities.BaseFare, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ar.DB.Create(baseFare)
+	if result.Error != nil {
+		log.Println("Unable to add bus fare")
+		return nil, result.Error
+	}
+	return baseFare, nil
+}
+
+// AddBusSchedule implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) AddBusSchedule(schedule *dto.BusSchedule) (*entities.BusSchedule, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	chart := &entities.BusSchedule{}
+	chart.BusID = schedule.BusID
+	parsedDate, err := time.Parse("02 01 2006", schedule.Day)
+	fmt.Println("Parsed Date:", parsedDate)
+	chart.Day = parsedDate
+	if err != nil {
+		log.Println(err)
+	}
+	result := ar.DB.Create(chart)
+	if result.Error != nil {
+		log.Println("Unable to add bus schedule")
+		return nil, result.Error
+	}
+	return chart, nil
 }
 
 // FindUserByEmail implements interfaces.AdminRepository.
@@ -245,12 +279,12 @@ func (ar *AdminRepositoryImpl) EditStation(id int, station *entities.Stations) (
 		log.Println("User not found")
 		return nil, errors.New("user not found")
 	}
-	if station.Location != "" {
-		foundStation.Location = station.Location
-	}
-	if station.StationCode != "" {
-		foundStation.StationCode = station.StationCode
-	}
+	// if station.Location != "" {
+	// 	foundStation.Location = station.Location
+	// }
+	// if station.StationCode != "" {
+	// 	foundStation.StationCode = station.StationCode
+	// }
 	if station.StationName != "" {
 		foundStation.StationName = station.StationName
 	}

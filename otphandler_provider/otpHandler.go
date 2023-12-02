@@ -21,7 +21,6 @@ var rdb *redis.Client
 var ctx = context.Background()
 
 func InitRedis() {
-	// Initialize the Redis client
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
@@ -45,8 +44,7 @@ type OtpHandler struct {
 func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 	provider := &entities.ServiceProvider{}
 	c.BindJSON(provider)
-	// Generate a random 6-digit OTP
-	// fmt.Println("Reached here")
+
 	otp := generateRandomOTP(6)
 	otpData := otpProvider{
 		Otp:      otp,
@@ -60,7 +58,7 @@ func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 		return
 	}
 	fmt.Print(rdb)
-	// Store the OTP in Redis with an expiration time (e.g., 5 minutes)
+
 	if err := rdb.Set(ctx, provider.Email, data, 5*time.Minute).Err(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "couldn't share data to redis-otp" + err.Error(),
@@ -85,7 +83,6 @@ func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 
 }
 
-// Function to generate a random OTP of the specified length
 func generateRandomOTP(length int) string {
 	characters := "0123456789"
 	otp := make([]byte, length)
@@ -98,16 +95,13 @@ func generateRandomOTP(length int) string {
 }
 
 func sendOTPEmail(recipientEmail, otp string) error {
-	// Create an email message
 	m := gomail.NewMessage()
 	m.SetHeader("From", os.Getenv("EMAIL"))
 	m.SetHeader("To", recipientEmail)
 	m.SetHeader("Subject", "Your OTP")
 
-	// Set the OTP as the email body
 	m.SetBody("text/plain", "Your OTP: "+otp)
 
-	// Send the email using an SMTP server
 	d := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("EMAIL"), os.Getenv("APP_PASSWORD"))
 
 	if err := d.DialAndSend(m); err != nil {
@@ -123,7 +117,6 @@ type verifyOTP struct {
 }
 
 func (oh *OtpHandler) VerifyOTP(c *gin.Context) {
-	// Retrieve the stored OTP from Redis
 	emailotp := &verifyOTP{}
 	c.BindJSON(emailotp)
 	serializedData, err := rdb.Get(ctx, emailotp.Email).Result()

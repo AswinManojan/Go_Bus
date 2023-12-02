@@ -16,7 +16,7 @@ type Claims struct {
 	*jwt.StandardClaims
 }
 
-func (j *JwtUtil) CreateToken(email string, role string) (string, error) {
+func (j *JwtUtil) CreateToken(email string, role string) (string, string, error) {
 	claims := &Claims{
 		Email: email,
 		Role:  role,
@@ -29,8 +29,22 @@ func (j *JwtUtil) CreateToken(email string, role string) (string, error) {
 	if err != nil {
 		panic("Error creating token")
 	}
-	return strToken, nil
+	refreshTokenClaims := &Claims{
+		Email: email,
+		Role:  role,
+		StandardClaims: &jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(7 * 24 * time.Hour).Unix(),
+		},
+	}
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshTokenClaims)
+	refreshTokenString, err := refreshToken.SignedString([]byte("111222"))
+	if err != nil {
+		return "", "", err
+	}
+
+	return strToken, refreshTokenString, nil
 }
+
 func (j *JwtUtil) ValidateToken(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
@@ -52,6 +66,21 @@ func (j *JwtUtil) ValidateToken(role string) gin.HandlerFunc {
 			})
 			return
 		}
+
+		// Check if the access token is about to expire
+		expirationTime := time.Unix(claims.ExpiresAt, 0)
+		if time.Until(expirationTime) < 5*time.Minute {
+			// If the token is about to expire, issue a new access token and send it in the response
+			newAccessToken, _, err := j.CreateToken(claims.Email, claims.Role)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+					"error": "Failed to generate new access token",
+				})
+				return
+			}
+			c.Header("X-New-Access-Token", newAccessToken)
+		}
+
 		if claims.Role != role || !parsedToken.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "user-admin mismatch-- unauthorized acces-- access denied",
@@ -62,7 +91,6 @@ func (j *JwtUtil) ValidateToken(role string) gin.HandlerFunc {
 		c.Next()
 	}
 }
-
 
 func NewJwtUtil() *JwtUtil {
 	return &JwtUtil{}

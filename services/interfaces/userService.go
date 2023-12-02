@@ -6,6 +6,11 @@ import (
 )
 
 type UserService interface {
-	Login(loginRequest *dto.LoginRequest) (string, error)
+	Login(login *dto.LoginRequest) (map[string]string, error)
 	RegisterUser(user *entities.User) (*entities.User, error)
+	FindBus(request *dto.BusRequest) ([]*entities.Bus_schedule, error)
+	AddPassenger(passenger *entities.PassengerInfo, email string) (*entities.PassengerInfo, error)
+	ViewAllPassengers(email string) ([]*entities.PassengerInfo, error)
+	BookSeat(bookreq *dto.BookingRequest, email string) (*entities.Booking, error)
+	FindCoupon() ([]*entities.Coupons, error)
 }

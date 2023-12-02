@@ -17,6 +17,26 @@ type AdminServiceImpl struct {
 	jwt  *middleware.JwtUtil
 }
 
+// AddFareForRoute implements interfaces.AdminService.
+func (as *AdminServiceImpl) AddFareForRoute(baseFare *entities.BaseFare) (*entities.BaseFare, error) {
+	baseFares, err := as.repo.AddFareForRoute(baseFare)
+	if err != nil {
+		log.Println("Error Adding baseFare, in adminServiceImpl file")
+		return nil, err
+	}
+	return baseFares, nil
+}
+
+// AddBusSchedule implements interfaces.AdminService.
+func (as *AdminServiceImpl) AddBusSchedule(schedule *dto.BusSchedule) (*entities.BusSchedule, error) {
+	schedules, err := as.repo.AddBusSchedule(schedule)
+	if err != nil {
+		log.Println("Error Creating schedule, in adminServiceImpl file")
+		return schedules, err
+	}
+	return schedules, nil
+}
+
 // AddStation implements interfaces.AdminService.
 func (as *AdminServiceImpl) AddStation(station *entities.Stations) (*entities.Stations, error) {
 	stations, err := as.repo.AddStation(station)
@@ -147,32 +167,62 @@ func (as *AdminServiceImpl) FindUser(id int) (*entities.User, error) {
 	return user, nil
 }
 
-// Login implements interfaces.AdminService.
-func (as *AdminServiceImpl) Login(loginRequest *dto.LoginRequest) (string, error) {
+// // Login implements interfaces.AdminService.
+// func (as *AdminServiceImpl) Login(loginRequest *dto.LoginRequest) (string, error) {
+// 	user, err := as.repo.FindUserByEmail(loginRequest.Email)
+// 	if err != nil {
+// 		log.Println("No USER EXISTS, in adminService file")
+// 		return "", errors.New("no User exists")
+// 	}
+// 	dbHashedPassword := user.Password // Replace with the actual hashed password.
+
+// 	enteredPassword := loginRequest.Password // Replace with the password entered by the user during login.
+
+// 	if err := bcrypt.CompareHashAndPassword([]byte(dbHashedPassword), []byte(enteredPassword)); err != nil {
+// 		// Passwords match. Allow the user to log in.
+// 		log.Println("Password Mismatch, in adminService file")
+// 		return "", errors.New("password Mismatch")
+// 	}
+// 	if user.Role != "admin" {
+// 		log.Println("Unauthorized, in adminService file")
+// 		return "", errors.New("unauthorized access")
+// 	}
+// 	token, err := as.jwt.CreateToken(loginRequest.Email, "admin")
+// 	if err != nil {
+// 		return "", errors.New("token NOT generated")
+// 	}
+
+//		return token, nil
+//	}
+func (as *AdminServiceImpl) Login(loginRequest *dto.LoginRequest) (map[string]string, error) {
 	user, err := as.repo.FindUserByEmail(loginRequest.Email)
 	if err != nil {
 		log.Println("No USER EXISTS, in adminService file")
-		return "", errors.New("no User exists")
+		return nil, errors.New("no User exists")
 	}
-	dbHashedPassword := user.Password // Replace with the actual hashed password.
+	dbHashedPassword := user.Password
 
-	enteredPassword := loginRequest.Password // Replace with the password entered by the user during login.
+	enteredPassword := loginRequest.Password
 
 	if err := bcrypt.CompareHashAndPassword([]byte(dbHashedPassword), []byte(enteredPassword)); err != nil {
-		// Passwords match. Allow the user to log in.
 		log.Println("Password Mismatch, in adminService file")
-		return "", errors.New("password Mismatch")
+		return nil, errors.New("password Mismatch")
 	}
 	if user.Role != "admin" {
 		log.Println("Unauthorized, in adminService file")
-		return "", errors.New("unauthorized access")
+		return nil, errors.New("unauthorized access")
 	}
-	token, err := as.jwt.CreateToken(loginRequest.Email, "admin")
+	accessToken, refreshToken, err := as.jwt.CreateToken(loginRequest.Email, "admin")
 	if err != nil {
-		return "", errors.New("token NOT generated")
+		return nil, errors.New("token pair NOT generated")
 	}
 
-	return token, nil
+	tokenPair := map[string]string{
+		"access_token":  accessToken,
+		"refresh_token": refreshToken,
+	}
+
+	return tokenPair, nil
 }
 
 // UnBlockProvider implements interfaces.AdminService.

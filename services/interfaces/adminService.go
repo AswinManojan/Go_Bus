@@ -6,7 +6,7 @@ import (
 )
 
 type AdminService interface {
-	Login(loginRequest *dto.LoginRequest) (string, error)
+	Login(loginRequest *dto.LoginRequest) (map[string]string, error)
 	FindUser(id int) (*entities.User, error)
 	FindAllUsers() ([]*entities.User, error)
 	UpdateUser(id int, user entities.User) (*entities.User, error)
@@ -25,4 +25,6 @@ type AdminService interface {
 	UpdateStation(id int, station entities.Stations) (*entities.Stations, error)
 	DeleteStation(id int) (*entities.Stations, error)
 	AddStation(station *entities.Stations) (*entities.Stations, error)
+	AddBusSchedule(schedule *dto.BusSchedule) (*entities.BusSchedule, error)
+	AddFareForRoute(baseFare *entities.BaseFare) (*entities.BaseFare, error)
 }

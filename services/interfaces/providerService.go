@@ -6,7 +6,7 @@ import (
 )
 
 type ProviderService interface {
-	Login(loginRequest *dto.LoginRequest) (string, error)
+	Login(loginRequest *dto.LoginRequest) (map[string]string, error)
 	RegisterProvider(provider *entities.ServiceProvider) (*entities.ServiceProvider, error)
 	FindProviderByEmail(email string) (*entities.ServiceProvider, error)
 	EditProvider(email string, provider *entities.ServiceProvider) (*entities.ServiceProvider, error)
