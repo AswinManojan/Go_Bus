@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"gobus/dto"
 	"gobus/entities"
 	"gobus/middleware"
@@ -13,6 +14,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/mohae/deepcopy"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -21,12 +24,96 @@ type UserServiceImpl struct {
 	jwt  *middleware.JwtUtil
 }
 
+// CancelBooking implements interfaces.UserService.
+func (usi *UserServiceImpl) CancelBooking(bookId int) (*entities.Booking, error) {
+	booking, err := usi.repo.FindBookingById(bookId)
+	if err != nil {
+		log.Println("Error finding booking that has to be cancelled, in userServiceImpl file")
+		return nil, err
+	}
+	parsedDate, err := time.Parse("02 01 2006", booking.BookingDate)
+	if err != nil {
+		log.Println("Error parsing the date, in userServiceImpl file")
+		return nil, err
+	}
+	//Getting bus chart
+	chart, _ := usi.repo.GetChart(int(booking.BusId), parsedDate)
+	type DeckOneLayoutstr struct {
+		DeckLayout [][]bool `json:"deckOneLayout"`
+	}
+	type DeckTwoLayoutstr struct {
+		DeckLayout [][]bool `json:"deckTwoLayout"`
+	}
+	var unmarshaledLayoutOne DeckOneLayoutstr
+	var unmarshaledLayoutTwo DeckTwoLayoutstr
+	for i := 0; i < len(booking.SeatReserved); i++ {
+		k := booking.SeatReserved[i][2]
+		num, _ := strconv.Atoi(booking.SeatReserved[i][:2])
+		if k == 'A' || k == 'B' || k == 'C' {
+			json.Unmarshal(chart.DeckOneSeatLayout, &unmarshaledLayoutOne)
+			if k == 'A' && unmarshaledLayoutOne.DeckLayout[num-1][0] {
+				unmarshaledLayoutOne.DeckLayout[num-1][0] = false
+			} else if k == 'B' && unmarshaledLayoutOne.DeckLayout[num-1][1] {
+				unmarshaledLayoutOne.DeckLayout[num-1][1] = false
+			} else if k == 'C' && unmarshaledLayoutOne.DeckLayout[num-1][2] {
+				unmarshaledLayoutOne.DeckLayout[num-1][2] = false
+			}
+			Layout, _ := json.Marshal(&unmarshaledLayoutOne)
+			chart.DeckOneSeatLayout = Layout
+		} else if k == 'D' || k == 'E' || k == 'F' {
+			json.Unmarshal(chart.DeckTwoSeatLayout, &unmarshaledLayoutTwo)
+			if k == 'D' && unmarshaledLayoutTwo.DeckLayout[num-1][0] {
+				unmarshaledLayoutTwo.DeckLayout[num-1][0] = false
+			} else if k == 'E' && unmarshaledLayoutTwo.DeckLayout[num-1][1] {
+				unmarshaledLayoutTwo.DeckLayout[num-1][1] = false
+			} else if k == 'F' && unmarshaledLayoutTwo.DeckLayout[num-1][2] {
+				unmarshaledLayoutTwo.DeckLayout[num-1][2] = false
+			}
+			Layout, _ := json.Marshal(&unmarshaledLayoutTwo)
+			chart.DeckTwoSeatLayout = Layout
+		}
+		_, err := usi.repo.UpdateChart(chart)
+		if err != nil {
+			log.Println("Could not update the chart, in userService file")
+			return nil, err
+		}
+	}
+	refundPostCancellationCharge := booking.FarePostDiscount * 0.9
+	user, _ := usi.repo.GetUserInfo(int(booking.UserId))
+	user.UserWallet += int(refundPostCancellationCharge)
+	busId := booking.BusId
+	bus, _ := usi.repo.GetBusInfo(int(busId))
+	provider, _ := usi.repo.GetProviderInfo(int(bus.ProviderId))
+	provider.ProviderWallet -= int(refundPostCancellationCharge)
+	usi.repo.UpdateUser(user)
+	usi.repo.UpdateProvider(provider)
+	booking.Status = "Cancelled by User"
+	cancelledBooking, err := usi.repo.CancelBooking(booking)
+	if err != nil {
+		log.Println("unable to cancel the booking, in userServiceImpl file")
+		return nil, err
+	}
+	return cancelledBooking, nil
+}
+
+// ViewBookings implements interfaces.UserService.
+func (usi *UserServiceImpl) ViewBookings(email string) ([]*entities.Booking, error) {
+	bookings, err := usi.repo.ViewBookings(email)
+	if err != nil {
+		log.Println("Error finding bookings, in userServiceImpl file")
+		return nil, err
+	}
+	return bookings, err
+}
+
+// GetChart implements interfaces.UserService.
+
 // FindCoupon implements interfaces.UserService.
 func (usi *UserServiceImpl) FindCoupon() ([]*entities.Coupons, error) {
 	coupons, err := usi.repo.FindCoupon()
 	if err != nil {
-		log.Println("Error finding coupon, in providerServiceImpl file")
-		return coupons, err
+		log.Println("Error finding coupon, in userServiceImpl file")
+		return nil, err
 	}
 	return coupons, err
 }
@@ -38,6 +125,7 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 		return nil, errors.New("seat-passenger count mismatch")
 	}
 	booking := &entities.Booking{}
+	booking.BookingDate = bookreq.BookingDate
 	booking.SeatReserved = bookreq.SeatsReserved
 	booking.BusId = bookreq.BusId
 	user, err := usi.repo.FindUserByEmail(email)
@@ -45,7 +133,29 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 		log.Println("Error finding user, in userServiceImpl file")
 		return nil, err
 	}
+	userBalance := uint(user.UserWallet)
 	booking.UserId = user.ID
+	passengers, _ := usi.repo.ViewAllPassengers(email)
+	var passengerIdlist []int
+	for i := 0; i < len(passengers); i++ {
+		passengerIdlist = append(passengerIdlist, int(passengers[i].PassengerId))
+	}
+	// fmt.Println(passengerIdlist)
+	// fmt.Println(bookreq.PassengerId)
+	for i := 0; i < len(bookreq.PassengerId); i++ {
+		count := 0
+		for j := 0; j < len(passengerIdlist); j++ {
+			if bookreq.PassengerId[i] == int64(passengerIdlist[j]) {
+				count++
+				break
+			}
+		}
+		fmt.Println(count)
+		if count != 1 {
+			log.Println("Passenger Id not valid, in userServiceImpl file")
+			return nil, errors.New("unknown passenger Id provided")
+		}
+	}
 	booking.PassengerId = bookreq.PassengerId
 	//Getting bus info
 	bus, err := usi.repo.GetBusInfo(int(bookreq.BusId))
@@ -53,6 +163,9 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 		log.Println("Error fetching bus details, in userServiceImpl file")
 		return nil, err
 	}
+	//Getting provider info
+	provider, _ := usi.repo.GetProviderInfo(int(bus.ProviderId))
+	providerBalance := provider.ProviderWallet
 	scheduleId := int(bus.ScheduleId)
 	//Getting bus type
 	// busType, err := usi.repo.GetBusTypeDetails(bus.BusTypeCode)
@@ -124,6 +237,14 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 		return nil, errors.New("coupon not active or valid")
 	}
 	booking.FarePostDiscount = booking.ActualFare * float64((100-float64(discount))/100)
+	if booking.FarePostDiscount > float64(userBalance) {
+		log.Println("Insuffucient fund to make the booking, in userServiceImpl file")
+		return nil, errors.New("user wallet Balance not sufficient to make the booking")
+	}
+	userBalance = userBalance - uint(booking.FarePostDiscount)
+	providerBalance = providerBalance + int(booking.FarePostDiscount)
+	user.UserWallet = int(userBalance)
+	provider.ProviderWallet = providerBalance
 	// fmt.Println(chart)
 	// fmt.Print(chart.DeckOneSeatLayout)
 	//reserving seat as per seatreserved string
@@ -135,10 +256,31 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 	}
 	var unmarshaledLayoutOne DeckOneLayoutstr
 	var unmarshaledLayoutTwo DeckTwoLayoutstr
-	var copyLayoutOne DeckOneLayoutstr
-	var copyLayoutTwo DeckTwoLayoutstr
+	// var copyLayoutOne [][]bool
+	// var copyLayoutTwo [][]bool
 	// flag := true
 	// flag1 := true
+	json.Unmarshal(chart.DeckOneSeatLayout, &unmarshaledLayoutOne)
+	copyLayoutOne := deepcopy.Copy(unmarshaledLayoutOne).(DeckOneLayoutstr)
+
+	// copyLayoutOne = unmarshaledLayoutOne.DeckLayout
+	// copyLayoutOne = append(copyLayoutOne, unmarshaledLayoutOne.DeckLayout...)
+	// fmt.Print(copyLayoutOne)
+	json.Unmarshal(chart.DeckTwoSeatLayout, &unmarshaledLayoutTwo)
+	// copyLayoutTwo = unmarshaledLayoutTwo.DeckLayout
+	copyLayoutTwo := deepcopy.Copy(unmarshaledLayoutTwo).(DeckTwoLayoutstr)
+
+	// fmt.Print(copyLayoutOne.DeckLayout)
+	// copyLayoutOne = unmarshaledLayoutOne
+	// copyLayoutOne := make([][]bool, len(unmarshaledLayoutOne.DeckLayout))
+	// for i := range copyLayoutOne {
+	// 	copyLayoutOne[i] = make([]int, len(original[i]))
+	// 	copy(copySlice[i], original[i])
+	// }
+	// json.Unmarshal(chart.DeckTwoSeatLayout, &unmarshaledLayoutTwo)
+	// fmt.Print(unmarshaledLayoutTwo)
+	// copy(te, unmarshaledLayoutTwo.DeckLayout)
+	// fmt.Print(te)
 	for i := 0; i < len(bookreq.SeatsReserved); i++ {
 		k := bookreq.SeatsReserved[i][2]
 		num, _ := strconv.Atoi(bookreq.SeatsReserved[i][:2])
@@ -147,7 +289,7 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 			// 	flag = false
 			// }
 			json.Unmarshal(chart.DeckOneSeatLayout, &unmarshaledLayoutOne)
-			copyLayoutOne = unmarshaledLayoutOne
+			// copyLayoutOne = unmarshaledLayoutOne
 			if num > len(unmarshaledLayoutOne.DeckLayout) {
 				log.Println("you are trying to book an invalid seat, in userServiceImpl file")
 				return nil, errors.New("invalid seat entered")
@@ -185,7 +327,7 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 			// 	// fmt.Println("Flag set to false")
 			// }
 			json.Unmarshal(chart.DeckTwoSeatLayout, &unmarshaledLayoutTwo)
-			copyLayoutTwo = unmarshaledLayoutTwo
+			// copyLayoutTwo = unmarshaledLayoutTwo
 			// fmt.Println(unmarshaledLayoutTwo)
 			if num > len(unmarshaledLayoutTwo.DeckLayout) {
 				log.Println("Seat you are trying to book an invalid seat, in userServiceImpl file")
@@ -225,6 +367,14 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 			log.Println("Could not update the chart, in userService file")
 			return nil, err
 		}
+	}
+	if _, err := usi.repo.UpdateUser(user); err != nil {
+		log.Println("Could not update the user Balance, in userService file")
+		return nil, err
+	}
+	if _, err := usi.repo.UpdateProvider(provider); err != nil {
+		log.Println("Could not update the provider Balance, in userService file")
+		return nil, err
 	}
 	booked, err := usi.repo.MakeBooking(booking)
 	if err != nil {

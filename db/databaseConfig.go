@@ -2,13 +2,14 @@ package db
 
 import (
 	"gobus/entities"
+	"os"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func ConnectDB() *gorm.DB {
-	dsn := "host=localhost user=postgres password=12345 dbname=gobus port=5432 sslmode=disable"
+	dsn := os.Getenv("DB_CONFIG")
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic("Unable to connect to DB")
@@ -18,7 +19,6 @@ func ConnectDB() *gorm.DB {
 		&entities.Buses{},
 		&entities.BusSchedule{},
 		&entities.Coupons{},
-		&entities.BookPassenger{},
 		&entities.Booking{},
 		&entities.BusSeatLayout{},
 		&entities.BusStatus{},

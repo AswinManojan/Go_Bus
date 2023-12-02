@@ -13,4 +13,6 @@ type UserService interface {
 	ViewAllPassengers(email string) ([]*entities.PassengerInfo, error)
 	BookSeat(bookreq *dto.BookingRequest, email string) (*entities.Booking, error)
 	FindCoupon() ([]*entities.Coupons, error)
+	ViewBookings(email string) ([]*entities.Booking, error)
+	CancelBooking(bookId int) (*entities.Booking, error)
 }

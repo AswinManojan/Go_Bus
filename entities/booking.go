@@ -9,6 +9,7 @@ type Booking struct {
 	ActualFare       float64
 	FarePostDiscount float64
 	BusId            uint
+	BookingDate      string         `json:"booking_date"`
 	PassengerId      pq.Int64Array  `gorm:"type:integer[]"`
 	SeatReserved     pq.StringArray `json:"seat_reserved" gorm:"type:text[]"`
 	Status           string         `gorm:"default: Payment Pending"`

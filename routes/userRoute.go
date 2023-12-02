@@ -25,6 +25,7 @@ func (as *UserRouters) URoutes() {
 	as.router.R.GET("/user/viewallpassenger", as.jwt.ValidateToken("user"), as.user.ViewAllPassengers)
 	as.router.R.POST("/user/bookseat", as.jwt.ValidateToken("user"), as.user.BookSeat)
 	as.router.R.GET("/user/coupon/view", as.jwt.ValidateToken("user"), as.user.FindCoupon)
+	as.router.R.GET("/user/bookings/view", as.jwt.ValidateToken("user"), as.user.ViewBookings)
 }
 
 func NewUserRoutes(a *handlers.UserHandler, server *server.ServerStruct, jwt *middleware.JwtUtil, o *otphandler.OtpHandler) *UserRouters {

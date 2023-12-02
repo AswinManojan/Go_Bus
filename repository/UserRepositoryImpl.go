@@ -15,6 +15,102 @@ type UserRepositoryImpl struct {
 	DB *gorm.DB
 }
 
+// GetUserInfo implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) GetUserInfo(userId int) (*entities.User, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	user := &entities.User{}
+	result := ur.DB.Where("id=?", userId).First(user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return user, nil
+}
+
+// UpdateProvider implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) UpdateProvider(provider *entities.ServiceProvider) (*entities.ServiceProvider, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ur.DB.Save(provider)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return provider, nil
+}
+
+// GetProviderInfo implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) GetProviderInfo(providerId int) (*entities.ServiceProvider, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	provider := &entities.ServiceProvider{}
+	result := ur.DB.Where("provider_id=?", providerId).First(provider)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return provider, nil
+}
+
+// UpdateUser implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) UpdateUser(user *entities.User) (*entities.User, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ur.DB.Save(user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return user, nil
+}
+
+// FindBookingById implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) FindBookingById(bookId int) (*entities.Booking, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	booking := &entities.Booking{}
+	result := ur.DB.Where("booking_id=?", bookId).First(booking)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return booking, nil
+}
+
+// CancelBooking implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) CancelBooking(booking *entities.Booking) (*entities.Booking, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ur.DB.Save(booking)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return booking, nil
+}
+
+// ViewBookings implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) ViewBookings(email string) ([]*entities.Booking, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	retrievedUser, _ := ur.FindUserByEmail(email)
+	bookings := []*entities.Booking{}
+	result := ur.DB.Where("user_id=?", retrievedUser.ID).Find(&bookings)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return bookings, nil
+}
+
 // UpdateChart implements interfaces.UserRepository.
 func (ur *UserRepositoryImpl) UpdateChart(chart *entities.BusSchedule) (*entities.BusSchedule, error) {
 	if ur.DB == nil {
@@ -133,7 +229,7 @@ func (ur *UserRepositoryImpl) ViewAllPassengers(email string) ([]*entities.Passe
 		return nil, errors.New("error connecting database")
 	}
 	retrievedUser, _ := ur.FindUserByEmail(email)
-	fmt.Println(retrievedUser.ID)
+	// fmt.Println(retrievedUser.ID)
 	passengers := []*entities.PassengerInfo{}
 	result := ur.DB.Where("user_id=?", retrievedUser.ID).Find(&passengers)
 	fmt.Println(passengers)

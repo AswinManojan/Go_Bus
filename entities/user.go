@@ -10,4 +10,5 @@ type User struct {
 	Gender      string `json:"gender" gorm:"not null"`
 	DOB         string `json:"dob" gorm:"not null"`
 	IsLocked    bool   `json:"is_account_locked" gorm:"default: false"`
+	UserWallet  int    `json:"user_wallet"`
 }

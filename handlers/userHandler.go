@@ -155,6 +155,25 @@ func (uh *UserHandler) FindCoupon(c *gin.Context) {
 		"data":    coupons,
 	})
 }
+func (uh *UserHandler) ViewBookings(c *gin.Context) {
+	email := c.MustGet("email").(string)
+	bookings, err := uh.user.ViewBookings(email)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to find the bookings",
+			"data":    err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusFound, gin.H{
+		"status":  "Success",
+		"message": "Successfully found the bookings",
+		"data":    bookings,
+	})
+}
+
 func NewUserHandler(userService interfaces.UserService) *UserHandler {
 	return &UserHandler{
 		user: userService,

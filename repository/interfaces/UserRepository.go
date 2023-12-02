@@ -21,5 +21,11 @@ type UserRepository interface {
 	GetBusInfo(id int) (*entities.Buses, error)
 	GetBaseFare(scheduleId int) (*entities.BaseFare, error)
 	UpdateChart(chart *entities.BusSchedule) (*entities.BusSchedule, error)
+	ViewBookings(email string) ([]*entities.Booking, error)
+	CancelBooking(booking *entities.Booking) (*entities.Booking, error)
+	FindBookingById(bookId int) (*entities.Booking, error)
+	UpdateUser(user *entities.User) (*entities.User, error)
+	GetProviderInfo(providerId int) (*entities.ServiceProvider, error)
+	UpdateProvider(provider *entities.ServiceProvider) (*entities.ServiceProvider, error)
+	GetUserInfo(userId int) (*entities.User, error)
 }
- 

@@ -58,7 +58,6 @@ func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 		return
 	}
 	fmt.Print(rdb)
-
 	if err := rdb.Set(ctx, provider.Email, data, 5*time.Minute).Err(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "couldn't share data to redis-otp" + err.Error(),
@@ -83,6 +82,7 @@ func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 
 }
 
+// Function to generate a random OTP of the specified length
 func generateRandomOTP(length int) string {
 	characters := "0123456789"
 	otp := make([]byte, length)
