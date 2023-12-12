@@ -6,34 +6,41 @@ import (
 	"gorm.io/gorm"
 )
 
+// SeatLayoutStr is used to setup the bus seat layout.
 type SeatLayoutStr struct {
 	DB *gorm.DB
 }
 
-func NewSeatLAyout(db *gorm.DB) *SeatLayoutStr {
+// NewSeatLayout is used to initialize the DB into the struct
+func NewSeatLayout(db *gorm.DB) *SeatLayoutStr {
 	return &SeatLayoutStr{
 		DB: db,
 	}
 }
 
+// BusSeatLayout struct is used to store the seat layout of bus.
 type BusSeatLayout struct {
 	gorm.Model
 	// SeatLayoutId   int    `json:"seat_id"`
-	DeckOneColumns int    `json:"deck_one_columns"`
-	DeckTwoColumns int    `json:"deck_two_columns"`
-	DeckOneRows    int    `json:"deck_one_rows"`
-	DeckTwoRows    int    `json:"deck_two_rows"`
+	DeckOneColumns int    `json:"deck_one_columns"  validate:"required"`
+	DeckTwoColumns int    `json:"deck_two_columns" validate:"required"`
+	DeckOneRows    int    `json:"deck_one_rows" validate:"required"`
+	DeckTwoRows    int    `json:"deck_two_rows" validate:"required"`
 	DeckOneLayout  []byte `json:"deckone_seat_layout"`
 	DeckTwoLayout  []byte `json:"decktwo_seat_layout"`
 }
 
+// DeckOneLayoutstr struct is used to store the unmarshalled data of Deck One layout
 type DeckOneLayoutstr struct {
 	DeckOneLayout [][]bool
 }
+
+// DeckTwoLayoutstr struct is used to store the unmarshalled data of Deck Two layout
 type DeckTwoLayoutstr struct {
 	DeckTwoLayout [][]bool
 }
 
+// Layout1 function is used define full sleeper layout
 func (slr *SeatLayoutStr) Layout1() {
 	layout := &BusSeatLayout{}
 	layout.DeckOneColumns = 3
@@ -64,6 +71,7 @@ func (slr *SeatLayoutStr) Layout1() {
 	slr.DB.Create(&layout)
 }
 
+// Layout2 function is used define sleeper-seater layout
 func (slr *SeatLayoutStr) Layout2() {
 	layout := &BusSeatLayout{}
 	layout.DeckOneColumns = 3
@@ -93,6 +101,8 @@ func (slr *SeatLayoutStr) Layout2() {
 	slr.DB.Create(&layout)
 
 }
+
+// Layout3 function is used define full seater layout
 func (slr *SeatLayoutStr) Layout3() {
 	layout := &BusSeatLayout{}
 	layout.DeckOneColumns = 3

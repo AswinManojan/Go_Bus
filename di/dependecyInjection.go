@@ -1,6 +1,7 @@
 package di
 
 import (
+	"fmt"
 	"gobus/db"
 	"gobus/handlers"
 	"gobus/middleware"
@@ -10,10 +11,12 @@ import (
 	"gobus/routes"
 	"gobus/server"
 	"gobus/services"
+
+	"github.com/robfig/cron"
 )
 
-func Init() *server.ServerStruct {
-	Loadenv()
+// Init function is used for initializing all the Handlers, Middlewares, Services, Repos and Routes.
+func Init() *server.Serverstruct {
 	db := db.ConnectDB()
 	jwt := middleware.NewJwtUtil()
 	// entities.SeatLayoutStr(db)
@@ -37,5 +40,13 @@ func Init() *server.ServerStruct {
 	adminRoutes.Routes()
 	userRoutes.URoutes()
 	providerRoutes.ProRoutes()
+	c := cron.New()
+	err := c.AddFunc("0 0 * * *", func() {
+		CouponValidator(providerService)
+	})
+	if err != nil {
+		fmt.Println("Error adding cron job:", err)
+	}
+	c.Start()
 	return server
 }

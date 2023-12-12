@@ -9,15 +9,27 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
+var validate = validator.New()
+
+// AdminHandler struct is used to setup Admin Handler
 type AdminHandler struct {
 	admin interfaces.AdminService
 }
 
+// Login function is used for admin login purpose.
 func (ah *AdminHandler) Login(c *gin.Context) {
 	LoginRequest := &dto.LoginRequest{}
 	c.BindJSON(LoginRequest)
+	if err := validate.Struct(LoginRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
+	}
 	token, err := ah.admin.Login(LoginRequest)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -33,6 +45,8 @@ func (ah *AdminHandler) Login(c *gin.Context) {
 		"data":    token,
 	})
 }
+
+// FindUser function is used to find the user based on ID
 func (ah *AdminHandler) FindUser(c *gin.Context) {
 	id := c.Param("id")
 	userID, err := strconv.Atoi(id)
@@ -59,6 +73,8 @@ func (ah *AdminHandler) FindUser(c *gin.Context) {
 		"data":    user,
 	})
 }
+
+// FindAllUsers function is used to find all the users of the application.
 func (ah *AdminHandler) FindAllUsers(c *gin.Context) {
 	users, err := ah.admin.FindAllUsers()
 	if err != nil {
@@ -76,6 +92,8 @@ func (ah *AdminHandler) FindAllUsers(c *gin.Context) {
 		"data":    users,
 	})
 }
+
+// UpdateUser is used to update the user information.
 func (ah *AdminHandler) UpdateUser(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -97,7 +115,13 @@ func (ah *AdminHandler) UpdateUser(c *gin.Context) {
 		})
 		return
 	}
-
+	if err := validate.Struct(user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
+	}
 	user, err = ah.admin.UpdateUser(idInt, *user)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -114,6 +138,8 @@ func (ah *AdminHandler) UpdateUser(c *gin.Context) {
 		"data":    user,
 	})
 }
+
+// DeleteUser function is used to delete a specific user from the application.
 func (ah *AdminHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -141,6 +167,8 @@ func (ah *AdminHandler) DeleteUser(c *gin.Context) {
 		"data":    user,
 	})
 }
+
+// BlockUser function is used to restrict a users access to the application
 func (ah *AdminHandler) BlockUser(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -168,6 +196,8 @@ func (ah *AdminHandler) BlockUser(c *gin.Context) {
 		"data":    user,
 	})
 }
+
+// UnBlockUser function is used to allow a restricted user to access into the application
 func (ah *AdminHandler) UnBlockUser(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -195,6 +225,8 @@ func (ah *AdminHandler) UnBlockUser(c *gin.Context) {
 		"data":    user,
 	})
 }
+
+// FindProvider function is used to find the provider based on the id passed.
 func (ah *AdminHandler) FindProvider(c *gin.Context) {
 	id := c.Param("id")
 	providerID, err := strconv.Atoi(id)
@@ -221,6 +253,8 @@ func (ah *AdminHandler) FindProvider(c *gin.Context) {
 		"data":    provider,
 	})
 }
+
+// FindAllProvider is used to find the details of all the providers.
 func (ah *AdminHandler) FindAllProvider(c *gin.Context) {
 	providers, err := ah.admin.FindAllProvider()
 	if err != nil {
@@ -238,6 +272,8 @@ func (ah *AdminHandler) FindAllProvider(c *gin.Context) {
 		"data":    providers,
 	})
 }
+
+// UpdateProvider function is used to update the provider information based on the id passed.
 func (ah *AdminHandler) UpdateProvider(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -259,6 +295,13 @@ func (ah *AdminHandler) UpdateProvider(c *gin.Context) {
 		})
 		return
 	}
+	if err := validate.Struct(provider); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
+	}
 
 	provider, err = ah.admin.UpdateProvider(idInt, *provider)
 	if err != nil {
@@ -276,6 +319,8 @@ func (ah *AdminHandler) UpdateProvider(c *gin.Context) {
 		"data":    provider,
 	})
 }
+
+// DeleteProvider function is used to delete the provider
 func (ah *AdminHandler) DeleteProvider(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -303,6 +348,8 @@ func (ah *AdminHandler) DeleteProvider(c *gin.Context) {
 		"data":    provider,
 	})
 }
+
+// BlockProvider function is used to block the provider from accessing the application.
 func (ah *AdminHandler) BlockProvider(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -330,6 +377,8 @@ func (ah *AdminHandler) BlockProvider(c *gin.Context) {
 		"data":    provider,
 	})
 }
+
+// UnBlockProvider function is used to allow the provider to access the application.
 func (ah *AdminHandler) UnBlockProvider(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -357,6 +406,8 @@ func (ah *AdminHandler) UnBlockProvider(c *gin.Context) {
 		"data":    provider,
 	})
 }
+
+// FindStation function is used to find the station based on the ID
 func (ah *AdminHandler) FindStation(c *gin.Context) {
 	id := c.Param("id")
 	stationID, err := strconv.Atoi(id)
@@ -383,6 +434,8 @@ func (ah *AdminHandler) FindStation(c *gin.Context) {
 		"data":    station,
 	})
 }
+
+// FindStationByName function is used to find the station based on the name
 func (ah *AdminHandler) FindStationByName(c *gin.Context) {
 	name := c.Query("name")
 	fmt.Print(name)
@@ -402,6 +455,8 @@ func (ah *AdminHandler) FindStationByName(c *gin.Context) {
 		"data":    station,
 	})
 }
+
+// FindAllStations function is used to find all the stations
 func (ah *AdminHandler) FindAllStations(c *gin.Context) {
 	stations, err := ah.admin.FindAllStations()
 	if err != nil {
@@ -419,6 +474,8 @@ func (ah *AdminHandler) FindAllStations(c *gin.Context) {
 		"data":    stations,
 	})
 }
+
+// UpdateStation function is used to update the station
 func (ah *AdminHandler) UpdateStation(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -441,6 +498,13 @@ func (ah *AdminHandler) UpdateStation(c *gin.Context) {
 		return
 	}
 
+	if err := validate.Struct(station); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
+	}
 	station, err = ah.admin.UpdateStation(idInt, *station)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
@@ -457,6 +521,8 @@ func (ah *AdminHandler) UpdateStation(c *gin.Context) {
 		"data":    station,
 	})
 }
+
+// DeleteStation function is used to delete a station
 func (ah *AdminHandler) DeleteStation(c *gin.Context) {
 	id := c.Param("id")
 	idInt, err := strconv.Atoi(id)
@@ -484,6 +550,8 @@ func (ah *AdminHandler) DeleteStation(c *gin.Context) {
 		"data":    station,
 	})
 }
+
+// AddStation function is used to add new station to application.
 func (ah *AdminHandler) AddStation(c *gin.Context) {
 	station := &entities.Stations{}
 	err := c.BindJSON(station)
@@ -494,6 +562,13 @@ func (ah *AdminHandler) AddStation(c *gin.Context) {
 			"data":    err.Error(),
 		})
 		return
+	}
+	if err := validate.Struct(station); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
 	}
 	addedStation, err := ah.admin.AddStation(station)
 	if err != nil {
@@ -511,6 +586,8 @@ func (ah *AdminHandler) AddStation(c *gin.Context) {
 	})
 
 }
+
+// AddBaseFare function is used to add the base fare for a route
 func (ah *AdminHandler) AddBaseFare(c *gin.Context) {
 	baseFare := &entities.BaseFare{}
 	err := c.BindJSON(baseFare)
@@ -521,6 +598,13 @@ func (ah *AdminHandler) AddBaseFare(c *gin.Context) {
 			"data":    err.Error(),
 		})
 		return
+	}
+	if err := validate.Struct(baseFare); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
 	}
 	addedFare, err := ah.admin.AddFareForRoute(baseFare)
 	if err != nil {
@@ -538,6 +622,8 @@ func (ah *AdminHandler) AddBaseFare(c *gin.Context) {
 	})
 
 }
+
+// AddBusSchedule function is used to add bus schedule for the bus
 func (ah *AdminHandler) AddBusSchedule(c *gin.Context) {
 	schedule := &dto.BusSchedule{}
 	err := c.BindJSON(schedule)
@@ -548,6 +634,13 @@ func (ah *AdminHandler) AddBusSchedule(c *gin.Context) {
 			"data":    err.Error(),
 		})
 		return
+	}
+	if err := validate.Struct(schedule); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
 	}
 	addedschedule, err := ah.admin.AddBusSchedule(schedule)
 	if err != nil {
@@ -565,6 +658,74 @@ func (ah *AdminHandler) AddBusSchedule(c *gin.Context) {
 	})
 }
 
+// ViewAllBookings function is used to list all the bookings
+func (ah *AdminHandler) ViewAllBookings(c *gin.Context) {
+	bookings, err := ah.admin.ViewAllBookings()
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to find the bookings",
+			"data":    err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusFound, gin.H{
+		"status":  "Success",
+		"message": "Successfully fetched the bookings",
+		"data":    bookings,
+	})
+}
+
+// ViewBookingsPerBus function is used to list all bookings based on the bus id passed.
+func (ah *AdminHandler) ViewBookingsPerBus(c *gin.Context) {
+	schedule := &dto.BusSchedule{}
+	c.BindJSON(schedule)
+	bookings, err := ah.admin.ViewBookingsPerBus(int(schedule.BusID), schedule.Day)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to find the bookings",
+			"data":    err.Error(),
+		})
+		return
+	}
+	if err := validate.Struct(schedule); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Please fill all the mandatory fields.",
+			"data":    err.Error(),
+		})
+	}
+	c.JSON(http.StatusFound, gin.H{
+		"status":  "Success",
+		"message": "Successfully fetched the bookings",
+		"data":    bookings,
+	})
+}
+
+// CancelBus function is used to cancel a bus on a specific day.
+func (ah *AdminHandler) CancelBus(c *gin.Context) {
+	schedule := &dto.BusSchedule{}
+	c.BindJSON(schedule)
+	result, err := ah.admin.CancelBus(int(schedule.BusID), schedule.Day)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"status":  "Failed",
+			"message": "Unable to cancel the bus",
+			"data":    err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusFound, gin.H{
+		"status":  "Success",
+		"message": "Successfully cancelled the bus",
+		"data":    result,
+	})
+}
+
+// NewAdminHandler is used to initialize the AdminHandler
 func NewAdminHandler(adminService interfaces.AdminService) *AdminHandler {
 	return &AdminHandler{
 		admin: adminService,

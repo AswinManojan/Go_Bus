@@ -11,18 +11,59 @@ import (
 	"gorm.io/gorm"
 )
 
+// UserRepositoryImpl struct is used to define User Repository Implementation.
 type UserRepositoryImpl struct {
 	DB *gorm.DB
 }
 
+// GetSubStationDetails implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) GetSubStationDetails(parent string) ([]*entities.SubStation, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	stations := []*entities.SubStation{}
+	result := ur.DB.Where("parent_location=?", parent).Find(&stations)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return stations, nil
+}
+
+// PaymentSuccess implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) PaymentSuccess(razor *entities.RazorPay) error {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return errors.New("error connecting database")
+	}
+	result := ur.DB.Create(&razor)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+// UpdateBooking implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) UpdateBooking(booking *entities.Booking) (*entities.Booking, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ur.DB.Save(booking)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return booking, nil
+}
+
 // GetUserInfo implements interfaces.UserRepository.
-func (ur *UserRepositoryImpl) GetUserInfo(userId int) (*entities.User, error) {
+func (ur *UserRepositoryImpl) GetUserInfo(userID int) (*entities.User, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
 	user := &entities.User{}
-	result := ur.DB.Where("id=?", userId).First(user)
+	result := ur.DB.Where("id=?", userID).First(user)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -43,13 +84,13 @@ func (ur *UserRepositoryImpl) UpdateProvider(provider *entities.ServiceProvider)
 }
 
 // GetProviderInfo implements interfaces.UserRepository.
-func (ur *UserRepositoryImpl) GetProviderInfo(providerId int) (*entities.ServiceProvider, error) {
+func (ur *UserRepositoryImpl) GetProviderInfo(providerID int) (*entities.ServiceProvider, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
 	provider := &entities.ServiceProvider{}
-	result := ur.DB.Where("provider_id=?", providerId).First(provider)
+	result := ur.DB.Where("provider_id=?", providerID).First(provider)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -69,14 +110,14 @@ func (ur *UserRepositoryImpl) UpdateUser(user *entities.User) (*entities.User, e
 	return user, nil
 }
 
-// FindBookingById implements interfaces.UserRepository.
-func (ur *UserRepositoryImpl) FindBookingById(bookId int) (*entities.Booking, error) {
+// FindBookingByID implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) FindBookingByID(bookID int) (*entities.Booking, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
 	booking := &entities.Booking{}
-	result := ur.DB.Where("booking_id=?", bookId).First(booking)
+	result := ur.DB.Where("booking_id=?", bookID).First(booking)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -125,13 +166,13 @@ func (ur *UserRepositoryImpl) UpdateChart(chart *entities.BusSchedule) (*entitie
 }
 
 // GetBaseFare implements interfaces.UserRepository.
-func (ur *UserRepositoryImpl) GetBaseFare(scheduleId int) (*entities.BaseFare, error) {
+func (ur *UserRepositoryImpl) GetBaseFare(scheduleID int) (*entities.BaseFare, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
 	baseFare := &entities.BaseFare{}
-	result := ur.DB.Where("schedule_id=?", scheduleId).First(baseFare)
+	result := ur.DB.Where("schedule_id=?", scheduleID).First(baseFare)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -180,7 +221,7 @@ func (ur *UserRepositoryImpl) GetChart(busid int, day time.Time) (*entities.BusS
 	return buschart, nil
 }
 
-// GetBusDetails implements interfaces.UserRepository.
+// GetBusTypeDetails implements interfaces.UserRepository.
 func (ur *UserRepositoryImpl) GetBusTypeDetails(code string) (*entities.BusType, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB")
@@ -208,8 +249,8 @@ func (ur *UserRepositoryImpl) FindCoupon() ([]*entities.Coupons, error) {
 	return coupons, nil
 }
 
-// FindCouponById implements interfaces.UserRepository.
-func (ur *UserRepositoryImpl) FindCouponById(id int) (*entities.Coupons, error) {
+// FindCouponByID implements interfaces.UserRepository.
+func (ur *UserRepositoryImpl) FindCouponByID(id int) (*entities.Coupons, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
@@ -253,13 +294,14 @@ func (ur *UserRepositoryImpl) MakeBooking(booking *entities.Booking) (*entities.
 	return booking, nil
 }
 
+// AddPassenger function is used to add the passenger
 func (ur *UserRepositoryImpl) AddPassenger(passenger *entities.PassengerInfo, email string) (*entities.PassengerInfo, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
 	retrievedUser, _ := ur.FindUserByEmail(email)
-	passenger.UserId = retrievedUser.ID
+	passenger.UserID = retrievedUser.ID
 	result := ur.DB.Create(&passenger)
 	if result.Error != nil {
 		log.Println("Unable to add passenger, UserRepositoryImpl package")
@@ -270,21 +312,29 @@ func (ur *UserRepositoryImpl) AddPassenger(passenger *entities.PassengerInfo, em
 }
 
 // FindBus implements interfaces.UserRepository.
-func (ur *UserRepositoryImpl) FindBus(depart string, arrival string) ([]*entities.Bus_schedule, error) {
+func (ur *UserRepositoryImpl) FindBus(depart string, arrival string) ([]*entities.BusScheduleCombo, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB in FindBus method, AdminRepositoryImpl package")
 		return nil, errors.New("error Connecting Database")
 	}
+	departStationInfo, err := ur.GetParentLocation(depart)
+	if err == nil {
+		depart = departStationInfo.ParentLocation
+	}
+	arrivalStationInfo, err := ur.GetParentLocation(arrival)
+	if err == nil {
+		arrival = arrivalStationInfo.ParentLocation
+	}
 	schedule, err := ur.FindSchedule(depart, arrival)
-	fmt.Println(schedule.ScheduleId)
+	// fmt.Println(schedule.ScheduleID)
 	if err != nil {
 		log.Println("Schedule not found in DB")
 		return nil, errors.New("schedule not Found in DB")
 	}
 	// fmt.Print(schedule.ScheduleId)
 	query := "SELECT * FROM buses b JOIN schedules s ON b.schedule_id = s.schedule_id WHERE b.schedule_id = ?"
-	buses := []*entities.Bus_schedule{}
-	ur.DB.Raw(query, schedule.ScheduleId).Scan(&buses)
+	buses := []*entities.BusScheduleCombo{}
+	ur.DB.Raw(query, schedule.ScheduleID).Scan(&buses)
 	// result := ur.DB.Where("schedule_id=?", schedule.ScheduleId).Find(&buses)
 	// if result.Error != nil {
 	// 	log.Println("Bus not available")
@@ -292,6 +342,22 @@ func (ur *UserRepositoryImpl) FindBus(depart string, arrival string) ([]*entitie
 	// }
 	return buses, nil
 }
+
+//GetParentLocation function is used to fetch the parent location based on the sub station name shared.
+func (ur *UserRepositoryImpl) GetParentLocation(name string) (*entities.SubStation, error) {
+	if ur.DB == nil {
+		log.Println("Error connecting DB in FindBus method, AdminRepositoryImpl package")
+		return nil, errors.New("error Connecting Database")
+	}
+	station := &entities.SubStation{}
+	if err := ur.DB.Where("sub_station=?", name).First(&station).Error; err != nil {
+		log.Println("Unable to find parent station, UserRepositoryImpl package")
+		return nil, errors.New("station not added to db")
+	}
+	return station, nil
+}
+
+// FindSchedule function is used to find the schedule
 func (ur *UserRepositoryImpl) FindSchedule(depart string, arrival string) (*entities.Schedule, error) {
 	if ur.DB == nil {
 		log.Println("Error connecting DB in FindBus method, AdminRepositoryImpl package")
@@ -340,6 +406,7 @@ func (ur *UserRepositoryImpl) RegisterUser(user *entities.User) (*entities.User,
 	return user, nil
 }
 
+// NewUserRepository function is used to instatiate User Repository
 func NewUserRepository(db *gorm.DB) interfaces.UserRepository {
 	return &UserRepositoryImpl{
 		DB: db,

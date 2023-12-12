@@ -8,14 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// JwtUtil struct is used to define the jwt functions.
 type JwtUtil struct{}
 
+// Claims struct is used to define the claim related details.
 type Claims struct {
 	Email string
 	Role  string
 	*jwt.StandardClaims
 }
 
+// CreateToken function is used to create a token
 func (j *JwtUtil) CreateToken(email string, role string) (string, string, error) {
 	claims := &Claims{
 		Email: email,
@@ -45,6 +48,7 @@ func (j *JwtUtil) CreateToken(email string, role string) (string, string, error)
 	return strToken, refreshTokenString, nil
 }
 
+// ValidateToken function is used to validate the token.
 func (j *JwtUtil) ValidateToken(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString := c.GetHeader("Authorization")
@@ -92,6 +96,7 @@ func (j *JwtUtil) ValidateToken(role string) gin.HandlerFunc {
 	}
 }
 
+// NewJwtUtil function is used to initialize/instatiate the JwtUtil
 func NewJwtUtil() *JwtUtil {
 	return &JwtUtil{}
 }

@@ -13,9 +13,26 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ProviderServiceImpl struct is used to Implement the Provider Service.
 type ProviderServiceImpl struct {
 	repo repository.ProviderRepository
 	jwt  *middleware.JwtUtil
+}
+
+// AddSubStations implements interfaces.ProviderService.
+func (ps *ProviderServiceImpl) AddSubStations(station *entities.SubStation) (*entities.SubStation, error) {
+	parent, err := ps.repo.FindStationByName(station.ParentLocation)
+	if err != nil {
+		log.Println("Unable to add the sub station, parent not found")
+		return nil, err
+	}
+	station.ParentID = parent.StationID
+	station, Suberr := ps.repo.AddSubStations(station)
+	if err != nil {
+		log.Println("Error adding the sub station details")
+		return nil, Suberr
+	}
+	return station, nil
 }
 
 // AddBus implements interfaces.ProviderService.
@@ -48,7 +65,7 @@ func (ps *ProviderServiceImpl) DeleteBus(id int, email string) (*entities.Buses,
 	return bus, err
 }
 
-// DeleteCoupon implements interfaces.ProviderService.
+// DeactivateCoupon implements interfaces.ProviderService.
 func (ps *ProviderServiceImpl) DeactivateCoupon(id int) (*entities.Coupons, error) {
 	coupon, err := ps.repo.DeactivateCoupon(id)
 	if err != nil {
@@ -57,6 +74,8 @@ func (ps *ProviderServiceImpl) DeactivateCoupon(id int) (*entities.Coupons, erro
 	}
 	return coupon, err
 }
+
+// ActivateCoupon is used to Activate any inactive coupon.
 func (ps *ProviderServiceImpl) ActivateCoupon(id int) (*entities.Coupons, error) {
 	coupon, err := ps.repo.ActivateCoupon(id)
 	if err != nil {
@@ -116,9 +135,9 @@ func (ps *ProviderServiceImpl) FindBus() ([]*entities.Buses, error) {
 	return buses, err
 }
 
-// FindBusById implements interfaces.ProviderService.
-func (ps *ProviderServiceImpl) FindBusById(id int) (*entities.Buses, error) {
-	bus, err := ps.repo.FindBusById(id)
+// FindBusByID implements interfaces.ProviderService.
+func (ps *ProviderServiceImpl) FindBusByID(id int) (*entities.Buses, error) {
+	bus, err := ps.repo.FindBusByID(id)
 	if err != nil {
 		log.Println("Error finding buses, in providerServiceImpl file")
 		return bus, err
@@ -146,9 +165,9 @@ func (ps *ProviderServiceImpl) FindCouponByCode(code string) (*entities.Coupons,
 	return coupon, err
 }
 
-// FindCouponById implements interfaces.ProviderService.
-func (ps *ProviderServiceImpl) FindCouponById(id int) (*entities.Coupons, error) {
-	coupon, err := ps.repo.FindCouponById(id)
+// FindCouponByID implements interfaces.ProviderService.
+func (ps *ProviderServiceImpl) FindCouponByID(id int) (*entities.Coupons, error) {
+	coupon, err := ps.repo.FindCouponByID(id)
 	if err != nil {
 		log.Println("Error finding coupon, in providerServiceImpl file")
 		return coupon, err
@@ -166,9 +185,9 @@ func (ps *ProviderServiceImpl) FindProviderByEmail(email string) (*entities.Serv
 	return provider, err
 }
 
-// FindStationById implements interfaces.ProviderService.
-func (ps *ProviderServiceImpl) FindStationById(id int) (*entities.Stations, error) {
-	station, err := ps.repo.FindStationById(id)
+// FindStationByID implements interfaces.ProviderService.
+func (ps *ProviderServiceImpl) FindStationByID(id int) (*entities.Stations, error) {
+	station, err := ps.repo.FindStationByID(id)
 	if err != nil {
 		log.Println("Error finding station, in providerServiceImpl file")
 		return station, err
@@ -194,9 +213,9 @@ func (ps *ProviderServiceImpl) Login(loginRequest *dto.LoginRequest) (map[string
 		log.Println("No Provider EXISTS, in adminService file")
 		return nil, errors.New("no Provider exists")
 	}
-	dbHashedPassword := foundProvider.Password 
+	dbHashedPassword := foundProvider.Password
 
-	enteredPassword := loginRequest.Password 
+	enteredPassword := loginRequest.Password
 
 	if err := bcrypt.CompareHashAndPassword([]byte(dbHashedPassword), []byte(enteredPassword)); err != nil {
 		log.Println("Password Mismatch, in adminService file")
@@ -231,12 +250,12 @@ func (ps *ProviderServiceImpl) Login(loginRequest *dto.LoginRequest) (map[string
 
 // RegisterProvider implements interfaces.ProviderService.
 func (ps *ProviderServiceImpl) RegisterProvider(provider *entities.ServiceProvider) (*entities.ServiceProvider, error) {
-	if hashedPassword, err := utils.HashPassword(provider.Password); err != nil {
+	hashedPassword, err := utils.HashPassword(provider.Password)
+	if err != nil {
 		log.Println("Unable to hash password")
 		return nil, err
-	} else {
-		provider.Password = hashedPassword
 	}
+	provider.Password = hashedPassword
 	regProvider, err := ps.repo.RegisterProvider(provider)
 	if err != nil {
 		log.Println("Provider not added, adminService file")
@@ -245,6 +264,7 @@ func (ps *ProviderServiceImpl) RegisterProvider(provider *entities.ServiceProvid
 	return regProvider, err
 }
 
+// NewProviderService function return ProviderServiceImpl of type ProviderService interface
 func NewProviderService(repo repository.ProviderRepository, jwt *middleware.JwtUtil) interfaces.ProviderService {
 	return &ProviderServiceImpl{
 		repo: repo,

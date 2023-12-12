@@ -12,8 +12,150 @@ import (
 	"gorm.io/gorm"
 )
 
+// AdminRepositoryImpl struct is used to define Admin Repository implementation.
 type AdminRepositoryImpl struct {
 	DB *gorm.DB
+}
+
+// GetRouteByBus implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) GetRouteByBus(scheduleID int) (*entities.Schedule, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	schedule := &entities.Schedule{}
+	result := ar.DB.Where("schedule_id=?", scheduleID).Find(schedule)
+	if result.Error != nil {
+		log.Println("Unable to fetch the buses")
+		return nil, result.Error
+	}
+	return schedule, nil
+}
+
+// ViewBookingsToBeCancelled implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) ViewBookingsToBeCancelled(busID int, day string) ([]*entities.Booking, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	str := "Success"
+	bookings := []*entities.Booking{}
+	result := ar.DB.Where("bus_id=? AND booking_date=? AND status=?", busID, day, str).Find(&bookings)
+	if result.Error != nil {
+		log.Println("Unable to fetch the buses")
+		return nil, result.Error
+	}
+	return bookings, nil
+}
+
+// UpdateBooking implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) UpdateBooking(booking *entities.Booking) (*entities.Booking, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ar.DB.Save(booking)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return booking, nil
+}
+
+// UpdateChart implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) UpdateChart(chart *entities.BusSchedule) (*entities.BusSchedule, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ar.DB.Save(chart)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return chart, nil
+}
+
+// UpdateProvider implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) UpdateProvider(provider *entities.ServiceProvider) (*entities.ServiceProvider, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ar.DB.Save(provider)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return provider, nil
+}
+
+// UpdateUser implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) UpdateUser(user *entities.User) (*entities.User, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := ar.DB.Save(user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return user, nil
+}
+
+// GetBusInfo implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) GetBusInfo(id int) (*entities.Buses, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	bus := &entities.Buses{}
+	result := ar.DB.Where("bus_id= ?", id).First(bus)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return bus, nil
+}
+
+// GetChart implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) GetChart(busid int, day time.Time) (*entities.BusSchedule, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	buschart := &entities.BusSchedule{}
+	result := ar.DB.Where("bus_id= ? AND day=?", busid, day).First(buschart)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return buschart, nil
+}
+
+// ViewBookingsPerBus implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) ViewBookingsPerBus(busID int, day string) ([]*entities.Booking, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	bookings := []*entities.Booking{}
+	result := ar.DB.Where("bus_id=? AND booking_date=?", busID, day).Find(&bookings)
+	if result.Error != nil {
+		log.Println("Unable to fetch the buses")
+		return nil, result.Error
+	}
+	return bookings, nil
+}
+
+// ViewAllBookings implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) ViewAllBookings() ([]*entities.Booking, error) {
+	if ar.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	bookings := []*entities.Booking{}
+	result := ar.DB.Find(&bookings)
+	if result.Error != nil {
+		log.Println("Unable to fetch the buses")
+		return nil, result.Error
+	}
+	return bookings, nil
 }
 
 // AddFareForRoute implements interfaces.AdminRepository.
@@ -73,7 +215,7 @@ func (ar *AdminRepositoryImpl) BlockProvider(id int) (*entities.ServiceProvider,
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	provider, err := ar.FindProviderById(id)
+	provider, err := ar.FindProviderByID(id)
 	if err != nil {
 		log.Println("provider not found")
 		return nil, errors.New("provider not found")
@@ -93,7 +235,7 @@ func (ar *AdminRepositoryImpl) UnBlockProvider(id int) (*entities.ServiceProvide
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	provider, err := ar.FindProviderById(id)
+	provider, err := ar.FindProviderByID(id)
 	if err != nil {
 		log.Println("provider not found")
 		return nil, errors.New("provider not found")
@@ -128,7 +270,7 @@ func (ar *AdminRepositoryImpl) BlockUser(id int) (*entities.User, error) {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	user, err := ar.FindUserById(id)
+	user, err := ar.FindUserByID(id)
 	if err != nil {
 		log.Println("User not found")
 		return nil, errors.New("user not found")
@@ -148,7 +290,7 @@ func (ar *AdminRepositoryImpl) UnBlockUser(id int) (*entities.User, error) {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	user, err := ar.FindUserById(id)
+	user, err := ar.FindUserByID(id)
 	if err != nil {
 		log.Println("User not found")
 		return nil, errors.New("user not found")
@@ -189,7 +331,7 @@ func (ar *AdminRepositoryImpl) DeleteProvider(id int) (*entities.ServiceProvider
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	provider, err := ar.FindProviderById(id)
+	provider, err := ar.FindProviderByID(id)
 	if err != nil {
 		log.Println("User Not found")
 		return nil, errors.New("error deleting the user")
@@ -205,7 +347,7 @@ func (ar *AdminRepositoryImpl) DeleteStation(id int) (*entities.Stations, error)
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	station, err := ar.FindStationById(id)
+	station, err := ar.FindStationByID(id)
 	if err != nil {
 		log.Println("User Not found")
 		return nil, errors.New("error deleting the user")
@@ -221,7 +363,7 @@ func (ar *AdminRepositoryImpl) DeleteUser(id int) (*entities.User, error) {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	user, err := ar.FindUserById(id)
+	user, err := ar.FindUserByID(id)
 	if err != nil {
 		log.Println("User Not found")
 		return nil, errors.New("error deleting the user")
@@ -237,7 +379,7 @@ func (ar *AdminRepositoryImpl) EditProvider(id int, provider *entities.ServicePr
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	foundProvider, err := ar.FindProviderById(id)
+	foundProvider, err := ar.FindProviderByID(id)
 	if err != nil {
 		log.Println("User not found")
 		return nil, errors.New("user not found")
@@ -274,7 +416,7 @@ func (ar *AdminRepositoryImpl) EditStation(id int, station *entities.Stations) (
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	foundStation, err := ar.FindStationById(id)
+	foundStation, err := ar.FindStationByID(id)
 	if err != nil {
 		log.Println("User not found")
 		return nil, errors.New("user not found")
@@ -302,7 +444,7 @@ func (ar *AdminRepositoryImpl) EditUser(id int, user *entities.User) (*entities.
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	foundUser, err := ar.FindUserById(id)
+	foundUser, err := ar.FindUserByID(id)
 	if err != nil {
 		log.Println("User not found")
 		return nil, errors.New("user not found")
@@ -376,8 +518,8 @@ func (ar *AdminRepositoryImpl) FindAllUsers() ([]*entities.User, error) {
 	return users, nil
 }
 
-// FindProviderById implements interfaces.AdminRepository.
-func (ar *AdminRepositoryImpl) FindProviderById(id int) (*entities.ServiceProvider, error) {
+// FindProviderByID implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) FindProviderByID(id int) (*entities.ServiceProvider, error) {
 	if ar.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
@@ -390,8 +532,8 @@ func (ar *AdminRepositoryImpl) FindProviderById(id int) (*entities.ServiceProvid
 	return provider, nil
 }
 
-// FindStationById implements interfaces.AdminRepository.
-func (ar *AdminRepositoryImpl) FindStationById(id int) (*entities.Stations, error) {
+// FindStationByID implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) FindStationByID(id int) (*entities.Stations, error) {
 	if ar.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
@@ -404,8 +546,8 @@ func (ar *AdminRepositoryImpl) FindStationById(id int) (*entities.Stations, erro
 	return station, nil
 }
 
-// FindUserById implements interfaces.AdminRepository.
-func (ar *AdminRepositoryImpl) FindUserById(id int) (*entities.User, error) {
+// FindUserByID implements interfaces.AdminRepository.
+func (ar *AdminRepositoryImpl) FindUserByID(id int) (*entities.User, error) {
 	if ar.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
@@ -418,6 +560,7 @@ func (ar *AdminRepositoryImpl) FindUserById(id int) (*entities.User, error) {
 	return user, nil
 }
 
+// NewAdminRepository function is used to initialize/instatiate Admin Repository.
 func NewAdminRepository(db *gorm.DB) interfaces.AdminRepository {
 	return &AdminRepositoryImpl{
 		DB: db,

@@ -5,6 +5,7 @@ import (
 	"gobus/entities"
 )
 
+// AdminService inteface is used as an interface for AdminServiceImplementation.
 type AdminService interface {
 	Login(loginRequest *dto.LoginRequest) (map[string]string, error)
 	FindUser(id int) (*entities.User, error)
@@ -27,4 +28,7 @@ type AdminService interface {
 	AddStation(station *entities.Stations) (*entities.Stations, error)
 	AddBusSchedule(schedule *dto.BusSchedule) (*entities.BusSchedule, error)
 	AddFareForRoute(baseFare *entities.BaseFare) (*entities.BaseFare, error)
+	ViewAllBookings() ([]*entities.Booking, error)
+	ViewBookingsPerBus(busID int, day string) ([]*entities.Booking, error)
+	CancelBus(busID int, day string) (string, error)
 }

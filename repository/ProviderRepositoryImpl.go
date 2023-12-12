@@ -9,11 +9,26 @@ import (
 	"gorm.io/gorm"
 )
 
+// ProviderRepositoryImpl struct is used to define Provider Repository Implementation.
 type ProviderRepositoryImpl struct {
 	DB *gorm.DB
 }
 
-// FindProviderById implements interfaces.ProviderRepository.
+// AddSubStations implements interfaces.ProviderRepository.
+func (pr *ProviderRepositoryImpl) AddSubStations(station *entities.SubStation) (*entities.SubStation, error) {
+	if pr.DB == nil {
+		log.Println("Error connecting DB")
+		return nil, errors.New("error connecting database")
+	}
+	result := pr.DB.Create(&station)
+	if result.Error != nil {
+		log.Println("Unable to add sub-station info")
+		return nil, result.Error
+	}
+	return station, nil
+}
+
+// FindProviderByEmail implements interfaces.ProviderRepository.
 func (pr *ProviderRepositoryImpl) FindProviderByEmail(email string) (*entities.ServiceProvider, error) {
 	if pr.DB == nil {
 		log.Println("Error connecting DB")
@@ -63,16 +78,17 @@ func (pr *ProviderRepositoryImpl) AddCoupon(coupon *entities.Coupons) (*entities
 	return coupon, nil
 }
 
+// AddBus function is used to add the bus
 func (pr *ProviderRepositoryImpl) AddBus(bus *entities.Buses, email string) (*entities.Buses, error) {
 	if pr.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
 	spr, err := pr.FindProviderByEmail(email)
-	if bus.ProviderId == 0 {
-		bus.ProviderId = spr.ProviderID
+	if bus.ProviderID == 0 {
+		bus.ProviderID = spr.ProviderID
 	}
-	if spr.ProviderID != bus.ProviderId {
+	if spr.ProviderID != bus.ProviderID {
 		log.Println("Unable to modify the details of a different provider")
 		return nil, errors.New("access Restricted")
 	}
@@ -100,8 +116,8 @@ func (pr *ProviderRepositoryImpl) DeleteBus(id int, email string) (*entities.Bus
 		return nil, errors.New("error connecting database")
 	}
 	spr, _ := pr.FindProviderByEmail(email)
-	bus, err := pr.FindBusById(id)
-	if spr.ProviderID != bus.ProviderId {
+	bus, err := pr.FindBusByID(id)
+	if spr.ProviderID != bus.ProviderID {
 		log.Println("Unable to modify the details of a different provider")
 		return nil, errors.New("access Restricted")
 	}
@@ -119,7 +135,7 @@ func (pr *ProviderRepositoryImpl) DeactivateCoupon(id int) (*entities.Coupons, e
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	foundCoupon, err := pr.FindCouponById(id)
+	foundCoupon, err := pr.FindCouponByID(id)
 	if err != nil {
 		log.Println("Coupon Not Found")
 		return nil, errors.New("coupon doesnot exists in db")
@@ -132,12 +148,14 @@ func (pr *ProviderRepositoryImpl) DeactivateCoupon(id int) (*entities.Coupons, e
 	}
 	return foundCoupon, nil
 }
+
+// ActivateCoupon function is used to activate an incative coupon.
 func (pr *ProviderRepositoryImpl) ActivateCoupon(id int) (*entities.Coupons, error) {
 	if pr.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	foundCoupon, err := pr.FindCouponById(id)
+	foundCoupon, err := pr.FindCouponByID(id)
 	if err != nil {
 		log.Println("Coupon Not Found")
 		return nil, errors.New("coupon doesnot exists in db")
@@ -157,7 +175,7 @@ func (pr *ProviderRepositoryImpl) EditBus(id int, bus *entities.Buses) (*entitie
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	foundBus, err := pr.FindBusById(id)
+	foundBus, err := pr.FindBusByID(id)
 	if err != nil {
 		log.Println("Bus Not Found")
 		return nil, errors.New("bus doesnot exists in db")
@@ -171,11 +189,11 @@ func (pr *ProviderRepositoryImpl) EditBus(id int, bus *entities.Buses) (*entitie
 	// if bus.BusStationId != 0 {
 	// 	foundBus.BusStationId = bus.BusStationId
 	// }
-	if bus.ProviderId != 0 {
-		foundBus.ProviderId = bus.ProviderId
+	if bus.ProviderID != 0 {
+		foundBus.ProviderID = bus.ProviderID
 	}
-	if bus.ScheduleId != 0 {
-		foundBus.ScheduleId = bus.ScheduleId
+	if bus.ScheduleID != 0 {
+		foundBus.ScheduleID = bus.ScheduleID
 	}
 	// if bus.SeatId != 0 {
 	// 	foundBus.SeatId = bus.SeatId
@@ -200,7 +218,7 @@ func (pr *ProviderRepositoryImpl) EditCoupon(id int, coupon *entities.Coupons) (
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
 	}
-	foundCoupon, err := pr.FindCouponById(id)
+	foundCoupon, err := pr.FindCouponByID(id)
 	if err != nil {
 		log.Println("Coupon Not Found")
 		return nil, errors.New("coupon doesnot exists in db")
@@ -301,8 +319,8 @@ func (pr *ProviderRepositoryImpl) FindCoupon() ([]*entities.Coupons, error) {
 	return coupons, nil
 }
 
-// FindCouponById implements interfaces.ProviderRepository.
-func (pr *ProviderRepositoryImpl) FindCouponById(id int) (*entities.Coupons, error) {
+// FindCouponByID implements interfaces.ProviderRepository.
+func (pr *ProviderRepositoryImpl) FindCouponByID(id int) (*entities.Coupons, error) {
 	if pr.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
@@ -315,8 +333,8 @@ func (pr *ProviderRepositoryImpl) FindCouponById(id int) (*entities.Coupons, err
 	return coupon, nil
 }
 
-// FindStationById implements interfaces.ProviderRepository.
-func (pr *ProviderRepositoryImpl) FindStationById(id int) (*entities.Stations, error) {
+// FindStationByID implements interfaces.ProviderRepository.
+func (pr *ProviderRepositoryImpl) FindStationByID(id int) (*entities.Stations, error) {
 	if pr.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
@@ -343,6 +361,7 @@ func (pr *ProviderRepositoryImpl) FindStationByName(name string) (*entities.Stat
 	return station, nil
 }
 
+// FindBusByNumber function is used to find the bus based on the bus number.
 func (pr *ProviderRepositoryImpl) FindBusByNumber(number string) (*entities.Buses, error) {
 	if pr.DB == nil {
 		log.Println("Error connecting DB")
@@ -356,8 +375,8 @@ func (pr *ProviderRepositoryImpl) FindBusByNumber(number string) (*entities.Buse
 	return bus, nil
 }
 
-// FundBusById implements interfaces.ProviderRepository.
-func (pr *ProviderRepositoryImpl) FindBusById(id int) (*entities.Buses, error) {
+// FindBusByID implements interfaces.ProviderRepository.
+func (pr *ProviderRepositoryImpl) FindBusByID(id int) (*entities.Buses, error) {
 	if pr.DB == nil {
 		log.Println("Error connecting DB")
 		return nil, errors.New("error connecting database")
@@ -386,6 +405,7 @@ func (pr *ProviderRepositoryImpl) RegisterProvider(provider *entities.ServicePro
 	return provider, nil
 }
 
+// NewProviderRepository is used to instatiate Provider Repository
 func NewProviderRepository(db *gorm.DB) interfaces.ProviderRepository {
 	return &ProviderRepositoryImpl{
 		DB: db,

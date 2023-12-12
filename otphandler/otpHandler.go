@@ -9,7 +9,6 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +19,7 @@ import (
 var rdb *redis.Client
 var ctx = context.Background()
 
+// InitRedis function is used to initialize Redis
 func InitRedis() {
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
@@ -30,17 +30,20 @@ func InitRedis() {
 	if err != nil {
 		panic("Failed to connect to Redis")
 	}
-
 }
 
+// otpUser struct is used to define the otp related information
 type otpUser struct {
 	Otp  string         `json:"otp"`
 	User *entities.User `json:"user"`
 }
+
+// OtpHandler struct is used to define the otp handler.
 type OtpHandler struct {
 	user interfaces.UserService
 }
 
+// GenerateOTP function is used to generate and send the OTP.
 func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 	user := &entities.User{}
 	c.BindJSON(user)
@@ -80,7 +83,7 @@ func (oh *OtpHandler) GenerateOTP(c *gin.Context) {
 
 }
 
-// Function to generate a random OTP of the specified length
+// generateRandomOTP function to generate a random OTP of the specified length
 func generateRandomOTP(length int) string {
 	characters := "0123456789"
 	otp := make([]byte, length)
@@ -92,15 +95,16 @@ func generateRandomOTP(length int) string {
 	return string(otp)
 }
 
+// sendOTPEmail function is used to send the otp.
 func sendOTPEmail(recipientEmail, otp string) error {
 	m := gomail.NewMessage()
-	m.SetHeader("From", os.Getenv("EMAIL"))
+	m.SetHeader("From", "gobusaswin@gmail.com")
 	m.SetHeader("To", recipientEmail)
 	m.SetHeader("Subject", "Your OTP")
 
 	m.SetBody("text/plain", "Your OTP: "+otp)
 
-	d := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("EMAIL"), os.Getenv("APP_PASSWORD"))
+	d := gomail.NewDialer("smtp.gmail.com", 587, "gobusaswin@gmail.com", "zfej mjdj hhzq lxve")
 
 	if err := d.DialAndSend(m); err != nil {
 		return err
@@ -109,11 +113,13 @@ func sendOTPEmail(recipientEmail, otp string) error {
 	return nil
 }
 
+// verifyOTP struct is used to define otp verification related infomations.
 type verifyOTP struct {
 	Email string `json:"email"`
 	OTP   string `json:"otp"`
 }
 
+// VerifyOTP fucntion is used to verify the OTP.
 func (oh *OtpHandler) VerifyOTP(c *gin.Context) {
 	emailotp := &verifyOTP{}
 	c.BindJSON(emailotp)
@@ -150,6 +156,7 @@ func (oh *OtpHandler) VerifyOTP(c *gin.Context) {
 	})
 }
 
+// NewotpHandler function is used to instatiate the OtpHandler
 func NewotpHandler(userService interfaces.UserService) *OtpHandler {
 	return &OtpHandler{
 		user: userService,

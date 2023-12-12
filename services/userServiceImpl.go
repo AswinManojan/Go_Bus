@@ -11,22 +11,202 @@ import (
 	"gobus/services/interfaces"
 	"gobus/utils"
 	"log"
+	"os"
 	"strconv"
 	"time"
 
 	"github.com/mohae/deepcopy"
+	"github.com/razorpay/razorpay-go"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
+// UserServiceImpl struct is used to Implement the UserService.
 type UserServiceImpl struct {
 	repo repository.UserRepository
 	jwt  *middleware.JwtUtil
 }
 
+// SubStationDetails implements interfaces.UserService.
+func (usi *UserServiceImpl) SubStationDetails(parent string) ([]string, error) {
+	stations, err := usi.repo.GetSubStationDetails(parent)
+	if err != nil {
+		log.Println("Error fetching the stations, in userServiceImpl file")
+		return nil, err
+	}
+	var substations []string
+	for _, student := range stations {
+		substations = append(substations, student.SubStation)
+	}
+	return substations, nil
+}
+
+// FindBookingByID implements interfaces.UserService.
+func (usi *UserServiceImpl) FindBookingByID(ID int) (*entities.Booking, error) {
+	book, err := usi.repo.FindBookingByID(int(ID))
+	if err != nil {
+		log.Println("Error fetching the booking, in userServiceImpl file")
+		return nil, err
+	}
+	return book, nil
+}
+
+// PaymentSuccess implements interfaces.UserService.
+func (usi *UserServiceImpl) PaymentSuccess(razor *entities.RazorPay) error {
+	bookingID := razor.BookID
+	book, err := usi.repo.FindBookingByID(int(bookingID))
+	if err != nil {
+		log.Println("Error fetching the booking, in userServiceImpl file")
+		return err
+	}
+	book.Status = "Success"
+	if _, err := usi.repo.UpdateBooking(book); err != nil {
+		log.Println("Error fetching the booking, in userServiceImpl file")
+		return err
+	}
+	if err := usi.repo.PaymentSuccess(razor); err != nil {
+		log.Println("Error updating Payment Info, in userServiceImpl file")
+		return err
+	}
+	return nil
+}
+
+type pageVariables struct {
+	OrderID string
+}
+
+// MakePayment implements interfaces.UserService.
+func (usi *UserServiceImpl) MakePayment(bookID int) (*dto.MakePaymentResp, error) {
+	booking, err := usi.repo.FindBookingByID(bookID)
+	if err != nil {
+		log.Println("Error fetching the booking, in userServiceImpl file")
+		return nil, err
+	}
+	user, err := usi.repo.GetUserInfo(int(booking.UserID))
+	if err != nil {
+		log.Println("Error fetching the user info, in userServiceImpl file")
+		return nil, err
+	}
+	amount := booking.FarePostDiscount * 100
+	razorKey := os.Getenv("RAZOR_KEY_ID")
+	razorSecret := os.Getenv("RAZOR_SECRET")
+	client := razorpay.NewClient(razorKey, razorSecret)
+
+	data := map[string]interface{}{
+		"amount":   amount,
+		"currency": "INR",
+		"receipt":  strconv.Itoa(int(booking.BookingID)),
+	}
+	body, err := client.Order.Create(data, nil)
+	if err != nil {
+		fmt.Printf("Problem getting repositorys information: %v\n", err)
+		return nil, err
+	}
+
+	value := body["id"]
+	str := value.(string)
+
+	homepageVariables := pageVariables{
+		OrderID: str,
+	}
+	paymentResp := &dto.MakePaymentResp{}
+	paymentResp.AmountInRupees = int(booking.FarePostDiscount)
+	paymentResp.BookingID = int(booking.BookingID)
+	paymentResp.Email = user.Email
+	paymentResp.PhoneNumber = user.PhoneNumber
+	paymentResp.OrderID = homepageVariables.OrderID
+	return paymentResp, nil
+}
+
+// SeatNameDecoder function is used to decode the seat name from rows and columns
+func SeatNameDecoder(row int, column int) string {
+	seatName := ""
+	if row < 9 {
+		seatName = fmt.Sprintf("0%d%c", row+1, 'A'+column)
+	} else {
+		seatName = fmt.Sprintf("%d%c", row+1, 'A'+column)
+
+	}
+	return seatName
+}
+
+// SeatAvailabilityChecker implements interfaces.UserService.
+func (usi *UserServiceImpl) SeatAvailabilityChecker(seatReq *dto.SeatAvailabilityRequest) (*dto.SeatAvailabilityResponse, error) {
+	busID := seatReq.BusID
+	parsedDate, _ := time.Parse("02 01 2006", seatReq.Date)
+	chart, err := usi.repo.GetChart(busID, parsedDate)
+	if err != nil {
+		log.Println("Error fetching the chart, in userServiceImpl file")
+		return nil, err
+	}
+	bus, err := usi.repo.GetBusInfo(busID)
+	if err != nil {
+		log.Println("Error fetching the bus Info, in userServiceImpl file")
+		return nil, err
+	}
+	busTypeCode := bus.BusTypeCode
+	totalSleeper := bus.TotalSleeperSeats
+	totalSeater := bus.TotalPushBackSeats
+	seatStatus := &dto.SeatAvailabilityResponse{}
+	seatStatus.BusID = seatReq.BusID
+	seatStatus.Date = seatReq.Date
+	seatStatus.BusStatus = chart.Status
+	type DeckOneLayoutstr struct {
+		DeckLayout [][]bool `json:"deckOneLayout"`
+	}
+	type DeckTwoLayoutstr struct {
+		DeckLayout [][]bool `json:"deckTwoLayout"`
+	}
+	deckOneCount := 0
+	deckTwoCount := 0
+	var deckOneSlots []string
+	var deckTwoSlots []string
+	var unmarshaledLayoutOne DeckOneLayoutstr
+	var unmarshaledLayoutTwo DeckTwoLayoutstr
+	json.Unmarshal(chart.DeckOneSeatLayout, &unmarshaledLayoutOne)
+	json.Unmarshal(chart.DeckTwoSeatLayout, &unmarshaledLayoutTwo)
+	for i := 0; i < len(unmarshaledLayoutOne.DeckLayout); i++ {
+		// var seatCode string
+		for j := 0; j < len(unmarshaledLayoutOne.DeckLayout[i]); j++ {
+			if unmarshaledLayoutOne.DeckLayout[i][j] {
+				deckOneCount++
+			} else {
+				deckOneSlots = append(deckOneSlots, SeatNameDecoder(i, j))
+			}
+		}
+	}
+	for i := 0; i < len(unmarshaledLayoutTwo.DeckLayout); i++ {
+		for j := 0; j < len(unmarshaledLayoutTwo.DeckLayout[i]); j++ {
+			if unmarshaledLayoutTwo.DeckLayout[i][j] {
+				deckOneCount++
+			} else {
+				deckTwoSlots = append(deckTwoSlots, SeatNameDecoder(i, j+3))
+			}
+		}
+	}
+	if busTypeCode == "AC_SL" || busTypeCode == "SL" {
+		totalSleeper = totalSleeper - uint(deckOneCount+deckTwoCount)
+		seatStatus.AvailableSleeperSlots = append(seatStatus.AvailableSleeperSlots, deckOneSlots...)
+		seatStatus.AvailableSleeperSlots = append(seatStatus.AvailableSleeperSlots, deckTwoSlots...)
+	} else if busTypeCode == "AC_SE" || busTypeCode == "SE" {
+		totalSeater = totalSeater - uint(deckOneCount+deckTwoCount)
+		seatStatus.AvailableSeaterSlots = append(seatStatus.AvailableSeaterSlots, deckOneSlots...)
+		seatStatus.AvailableSeaterSlots = append(seatStatus.AvailableSeaterSlots, deckTwoSlots...)
+	} else {
+		totalSleeper = totalSleeper - uint(deckTwoCount)
+		totalSeater = totalSeater - uint(deckOneCount)
+		seatStatus.AvailableSeaterSlots = append(seatStatus.AvailableSeaterSlots, deckOneSlots...)
+		seatStatus.AvailableSleeperSlots = append(seatStatus.AvailableSleeperSlots, deckTwoSlots...)
+	}
+	seatStatus.SleeperSlotsLeft = int(totalSleeper)
+	seatStatus.SeaterSlotsLeft = int(totalSeater)
+	seatStatus.BusType = busTypeCode
+	return seatStatus, nil
+}
+
 // CancelBooking implements interfaces.UserService.
-func (usi *UserServiceImpl) CancelBooking(bookId int) (*entities.Booking, error) {
-	booking, err := usi.repo.FindBookingById(bookId)
+func (usi *UserServiceImpl) CancelBooking(bookID int) (*entities.Booking, error) {
+	booking, err := usi.repo.FindBookingByID(bookID)
 	if err != nil {
 		log.Println("Error finding booking that has to be cancelled, in userServiceImpl file")
 		return nil, err
@@ -37,7 +217,7 @@ func (usi *UserServiceImpl) CancelBooking(bookId int) (*entities.Booking, error)
 		return nil, err
 	}
 	//Getting bus chart
-	chart, _ := usi.repo.GetChart(int(booking.BusId), parsedDate)
+	chart, _ := usi.repo.GetChart(int(booking.BusID), parsedDate)
 	type DeckOneLayoutstr struct {
 		DeckLayout [][]bool `json:"deckOneLayout"`
 	}
@@ -79,11 +259,11 @@ func (usi *UserServiceImpl) CancelBooking(bookId int) (*entities.Booking, error)
 		}
 	}
 	refundPostCancellationCharge := booking.FarePostDiscount * 0.9
-	user, _ := usi.repo.GetUserInfo(int(booking.UserId))
+	user, _ := usi.repo.GetUserInfo(int(booking.UserID))
 	user.UserWallet += int(refundPostCancellationCharge)
-	busId := booking.BusId
-	bus, _ := usi.repo.GetBusInfo(int(busId))
-	provider, _ := usi.repo.GetProviderInfo(int(bus.ProviderId))
+	busID := booking.BusID
+	bus, _ := usi.repo.GetBusInfo(int(busID))
+	provider, _ := usi.repo.GetProviderInfo(int(bus.ProviderID))
 	provider.ProviderWallet -= int(refundPostCancellationCharge)
 	usi.repo.UpdateUser(user)
 	usi.repo.UpdateProvider(provider)
@@ -93,6 +273,7 @@ func (usi *UserServiceImpl) CancelBooking(bookId int) (*entities.Booking, error)
 		log.Println("unable to cancel the booking, in userServiceImpl file")
 		return nil, err
 	}
+	WhatsappNotifier("The booking has been cancelled successfully and the refund has been transferred to your wallet.", user.PhoneNumber)
 	return cancelledBooking, nil
 }
 
@@ -106,8 +287,6 @@ func (usi *UserServiceImpl) ViewBookings(email string) ([]*entities.Booking, err
 	return bookings, err
 }
 
-// GetChart implements interfaces.UserService.
-
 // FindCoupon implements interfaces.UserService.
 func (usi *UserServiceImpl) FindCoupon() ([]*entities.Coupons, error) {
 	coupons, err := usi.repo.FindCoupon()
@@ -120,32 +299,32 @@ func (usi *UserServiceImpl) FindCoupon() ([]*entities.Coupons, error) {
 
 // BookSeat implements interfaces.UserService.
 func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) (*entities.Booking, error) {
-	if len(bookreq.PassengerId) != len(bookreq.SeatsReserved) {
+	if len(bookreq.PassengerID) != len(bookreq.SeatsReserved) {
 		log.Println("Error seat-passenger mismatch, in userServiceImpl file")
 		return nil, errors.New("seat-passenger count mismatch")
 	}
 	booking := &entities.Booking{}
 	booking.BookingDate = bookreq.BookingDate
 	booking.SeatReserved = bookreq.SeatsReserved
-	booking.BusId = bookreq.BusId
+	booking.BusID = bookreq.BusID
 	user, err := usi.repo.FindUserByEmail(email)
 	if err != nil {
 		log.Println("Error finding user, in userServiceImpl file")
 		return nil, err
 	}
 	userBalance := uint(user.UserWallet)
-	booking.UserId = user.ID
+	booking.UserID = user.ID
 	passengers, _ := usi.repo.ViewAllPassengers(email)
 	var passengerIdlist []int
 	for i := 0; i < len(passengers); i++ {
-		passengerIdlist = append(passengerIdlist, int(passengers[i].PassengerId))
+		passengerIdlist = append(passengerIdlist, int(passengers[i].PassengerID))
 	}
 	// fmt.Println(passengerIdlist)
 	// fmt.Println(bookreq.PassengerId)
-	for i := 0; i < len(bookreq.PassengerId); i++ {
+	for i := 0; i < len(bookreq.PassengerID); i++ {
 		count := 0
 		for j := 0; j < len(passengerIdlist); j++ {
-			if bookreq.PassengerId[i] == int64(passengerIdlist[j]) {
+			if bookreq.PassengerID[i] == int64(passengerIdlist[j]) {
 				count++
 				break
 			}
@@ -156,17 +335,17 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 			return nil, errors.New("unknown passenger Id provided")
 		}
 	}
-	booking.PassengerId = bookreq.PassengerId
+	booking.PassengerID = bookreq.PassengerID
 	//Getting bus info
-	bus, err := usi.repo.GetBusInfo(int(bookreq.BusId))
+	bus, err := usi.repo.GetBusInfo(int(bookreq.BusID))
 	if err != nil {
 		log.Println("Error fetching bus details, in userServiceImpl file")
 		return nil, err
 	}
 	//Getting provider info
-	provider, _ := usi.repo.GetProviderInfo(int(bus.ProviderId))
+	provider, _ := usi.repo.GetProviderInfo(int(bus.ProviderID))
 	providerBalance := provider.ProviderWallet
-	scheduleId := int(bus.ScheduleId)
+	scheduleID := int(bus.ScheduleID)
 	//Getting bus type
 	// busType, err := usi.repo.GetBusTypeDetails(bus.BusTypeCode)
 	// if err != nil {
@@ -185,13 +364,17 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 		return nil, err
 	}
 	//Getting bus chart
-	chart, err := usi.repo.GetChart(int(bookreq.BusId), parsedDate)
+	chart, err := usi.repo.GetChart(int(bookreq.BusID), parsedDate)
 	if err != nil {
 		log.Println("Error fetching bus schedule, in userServiceImpl file")
 		return nil, err
 	}
+	if chart.Status != "Active" {
+		log.Println("Bus Schedule seems to be cancelled or Inactive, in userServiceImpl file")
+		return nil, errors.New("schedule not in active state")
+	}
 	//Fetching the fare
-	bFare, err := usi.repo.GetBaseFare(scheduleId)
+	bFare, err := usi.repo.GetBaseFare(scheduleID)
 	if err != nil {
 		log.Println("Error fetching base fare, in userServiceImpl file")
 		return nil, err
@@ -205,7 +388,7 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 	}
 	totalFare := 0.0
 	if bus.BusTypeCode == "AC_SL" || bus.BusTypeCode == "SL" {
-		totalFare = float64(len(bookreq.PassengerId)) * booking.ActualFare * 1.2
+		totalFare = float64(len(bookreq.PassengerID)) * booking.ActualFare * 1.2
 	} else if bus.BusTypeCode == "AC_SL_SE" || bus.BusTypeCode == "SL_SE" {
 		c1 := 0
 		c2 := 0
@@ -220,31 +403,33 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 		}
 		totalFare = (float64(c1) * booking.ActualFare) + (float64(c2) * booking.ActualFare * 1.2)
 	} else {
-		totalFare = float64(len(bookreq.PassengerId)) * booking.ActualFare
+		totalFare = float64(len(bookreq.PassengerID)) * booking.ActualFare
 	}
 	booking.ActualFare = totalFare
 	discount := 0
-	coupon, err := usi.repo.FindCouponById(int(bookreq.UsedCouponId))
+	coupon, err := usi.repo.FindCouponByID(int(bookreq.UsedCouponID))
 	if err != nil {
 		log.Println("Error finding coupon, in userServiceImpl file")
 		return nil, err
 	}
 	if coupon.IsActive {
-		booking.UsedCouponId = bookreq.UsedCouponId
+		booking.UsedCouponID = bookreq.UsedCouponID
 		discount = int(coupon.Discount)
 	} else {
 		log.Println("Coupon not active or valid, in userServiceImpl file")
 		return nil, errors.New("coupon not active or valid")
 	}
+	booking.Status = "Awaiting Payment"
 	booking.FarePostDiscount = booking.ActualFare * float64((100-float64(discount))/100)
-	if booking.FarePostDiscount > float64(userBalance) {
-		log.Println("Insuffucient fund to make the booking, in userServiceImpl file")
-		return nil, errors.New("user wallet Balance not sufficient to make the booking")
+	if bookreq.PreferredPaymentType == "Wallet" && booking.FarePostDiscount <= float64(userBalance) {
+		userBalance = userBalance - uint(booking.FarePostDiscount)
+		providerBalance = providerBalance + int(booking.FarePostDiscount)
+		user.UserWallet = int(userBalance)
+		provider.ProviderWallet = providerBalance
+		booking.Status = "Success"
+	} else if bookreq.PreferredPaymentType == "Wallet" && booking.FarePostDiscount > float64(userBalance) {
+		log.Println("Insuffucient fund to make the booking using wallet,Redirecting to RazorPay.")
 	}
-	userBalance = userBalance - uint(booking.FarePostDiscount)
-	providerBalance = providerBalance + int(booking.FarePostDiscount)
-	user.UserWallet = int(userBalance)
-	provider.ProviderWallet = providerBalance
 	// fmt.Println(chart)
 	// fmt.Print(chart.DeckOneSeatLayout)
 	//reserving seat as per seatreserved string
@@ -381,6 +566,8 @@ func (usi *UserServiceImpl) BookSeat(bookreq *dto.BookingRequest, email string) 
 		log.Println("Unable to make the booking, in userServiceImpl file")
 		return nil, err
 	}
+	message := fmt.Sprintf("The seats %s of the bus %d has been booked for the day %s.", booked.SeatReserved[:], booked.BusID, booked.BookingDate)
+	WhatsappNotifier(message, user.PhoneNumber)
 	return booked, nil
 }
 
@@ -405,7 +592,7 @@ func (usi *UserServiceImpl) AddPassenger(passenger *entities.PassengerInfo, emai
 }
 
 // FindBus implements interfaces.UserService.
-func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.Bus_schedule, error) {
+func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.BusScheduleCombo, error) {
 	depart := request.DepartureStation
 	arrival := request.ArrivalStation
 	buses, err := usi.repo.FindBus(depart, arrival)
@@ -413,9 +600,35 @@ func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.Bus_sc
 		log.Println("No Buses EXISTS for this route, in userService file")
 		return nil, errors.New("no Bus exists")
 	}
+	if request.Duration != 0 {
+		var outbuses []*entities.BusScheduleCombo
+		for _, bus := range buses {
+			depart, _ := time.Parse("15:04:05", bus.DepartureTime)
+			arrive, _ := time.Parse("15:04:05", bus.ArrivalTime)
+			if depart.After(arrive) {
+				arrive = arrive.Add(24 * time.Hour)
+			}
+			if arrive.Sub(depart) <= time.Duration(request.Duration)*time.Hour {
+				outbuses = append(outbuses, bus)
+			}
+		}
+		buses = outbuses
+		// return outbuses, nil
+	}
+	// if request.Price != 0 {
+	// 	var outpricebuses []*entities.BusScheduleCombo
+	// 	for _, bus := range buses {
+	// 		baseFare, _ := usi.repo.GetBaseFare(int(bus.ScheduleID))
+	// 		if request.Price <= int(baseFare.BaseFare) {
+	// 			outpricebuses = append(outpricebuses, bus)
+	// 		}
+
+	// 	}
+	// }
 	return buses, nil
 }
 
+// Login function is used to login the user into the application
 func (usi *UserServiceImpl) Login(login *dto.LoginRequest) (map[string]string, error) {
 	user, err := usi.repo.FindUserByEmail(login.Email)
 	if err != nil {
@@ -459,21 +672,23 @@ func (usi *UserServiceImpl) Login(login *dto.LoginRequest) (map[string]string, e
 
 }
 
+// RegisterUser function is used to register the user with the hashed password.
 func (usi *UserServiceImpl) RegisterUser(user *entities.User) (*entities.User, error) {
-	if hashedPassword, err := utils.HashPassword(user.Password); err != nil {
+	hashedPassword, err := utils.HashPassword(user.Password)
+	if err != nil {
 		log.Println("Unable to hash password")
 		return nil, err
-	} else {
-		user.Password = hashedPassword
 	}
-	user, err := usi.repo.RegisterUser(user)
+	user.Password = hashedPassword
+	users, err := usi.repo.RegisterUser(user)
 	if err != nil {
 		log.Println("User not added, adminService file")
-		return user, err
+		return users, err
 	}
-	return user, err
+	return users, err
 }
 
+// NewUserService function returns UserServiceImpl of type UserService Interface
 func NewUserService(repo repository.UserRepository, jwt *middleware.JwtUtil) interfaces.UserService {
 	return &UserServiceImpl{
 		repo: repo,

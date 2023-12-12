@@ -6,33 +6,16 @@ import (
 	"gobus/server"
 )
 
+// AdminRouters struct is used to define the admin router.
 type AdminRouters struct {
-	router *server.ServerStruct
+	router *server.Serverstruct
 	admin  *handlers.AdminHandler
 	jwt    *middleware.JwtUtil
 }
 
+// Routes function is used to define the admin routes.
 func (ar *AdminRouters) Routes() {
 	ar.router.R.POST("/admin/login", ar.admin.Login)
-	// ar.router.R.POST("/admin/stations/add", ar.jwt.ValidateToken("admin"), ar.admin.AddStation)
-	// ar.router.R.GET("/admin/user_management/view/:id", ar.jwt.ValidateToken("admin"), ar.admin.FindUser)
-	// ar.router.R.GET("/admin/user_management/view", ar.jwt.ValidateToken("admin"), ar.admin.FindAllUsers)
-	// ar.router.R.GET("/admin/user_management/block/:id", ar.jwt.ValidateToken("admin"), ar.admin.BlockUser)
-	// ar.router.R.GET("/admin/user_management/unblock/:id", ar.jwt.ValidateToken("admin"), ar.admin.UnBlockUser)
-	// ar.router.R.GET("/admin/provider_management/view/:id", ar.jwt.ValidateToken("admin"), ar.admin.FindProvider)
-	// ar.router.R.GET("/admin/provider_management/view", ar.jwt.ValidateToken("admin"), ar.admin.FindAllProvider)
-	// ar.router.R.GET("/admin/provider_management/block/:id", ar.jwt.ValidateToken("admin"), ar.admin.BlockProvider)
-	// ar.router.R.GET("/admin/provider_management/unblock/:id", ar.jwt.ValidateToken("admin"), ar.admin.UnBlockProvider)
-	// ar.router.R.GET("/api/stations/view/:id", ar.jwt.ValidateToken("admin"), ar.admin.FindStation)
-	// ar.router.R.GET("/api/stations/viewbyname", ar.jwt.ValidateToken("admin"), ar.admin.FindStationByName)
-	// ar.router.R.GET("/api/stations/view", ar.jwt.ValidateToken("admin"), ar.admin.FindAllStations)
-	// ar.router.R.PUT("/admin/user_management/edit/:id", ar.jwt.ValidateToken("admin"), ar.admin.UpdateUser)
-	// ar.router.R.PUT("/admin/stations/edit/:id", ar.jwt.ValidateToken("admin"), ar.admin.UpdateStation)
-	// ar.router.R.PUT("/admin/provider_management/edit/:id", ar.jwt.ValidateToken("admin"), ar.admin.UpdateProvider)
-	// ar.router.R.DELETE("/admin/user_management/remove/:id", ar.jwt.ValidateToken("admin"), ar.admin.DeleteUser)
-	// ar.router.R.DELETE("/admin/provider_management/remove/:id", ar.jwt.ValidateToken("admin"), ar.admin.DeleteProvider)
-	// ar.router.R.DELETE("/admin/stations/remove/:id", ar.jwt.ValidateToken("admin"), ar.admin.DeleteStation)
-
 	adminGroup := ar.router.R.Group("/admin").Use(ar.jwt.ValidateToken("admin"))
 	{
 		adminGroup.POST("/stations/add", ar.admin.AddStation)
@@ -55,11 +38,15 @@ func (ar *AdminRouters) Routes() {
 		adminGroup.DELETE("/stations/remove/:id", ar.admin.DeleteStation)
 		adminGroup.POST("/busschedule/addtochart", ar.admin.AddBusSchedule)
 		adminGroup.POST("/busschedule/addbasefare", ar.admin.AddBaseFare)
+		adminGroup.GET("/bookings/view", ar.admin.ViewAllBookings)
+		adminGroup.GET("/bookings/viewbybus", ar.admin.ViewBookingsPerBus)
+		adminGroup.POST("/bookings/cancelbus", ar.admin.CancelBus)
 	}
 	// adminGroup.POST("/login", ar.admin.Login)
 }
 
-func NewAdminRoutes(a *handlers.AdminHandler, r *server.ServerStruct, jwt *middleware.JwtUtil) *AdminRouters {
+// NewAdminRoutes function is used to instantiate Admin Routers.
+func NewAdminRoutes(a *handlers.AdminHandler, r *server.Serverstruct, jwt *middleware.JwtUtil) *AdminRouters {
 	return &AdminRouters{
 		router: r,
 		admin:  a,

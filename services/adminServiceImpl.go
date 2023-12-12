@@ -2,19 +2,147 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"gobus/dto"
 	"gobus/entities"
 	"gobus/middleware"
 	repository "gobus/repository/interfaces"
 	service "gobus/services/interfaces"
 	"log"
+	"os"
+	"time"
+
+	"github.com/twilio/twilio-go"
+	api "github.com/twilio/twilio-go/rest/api/v2010"
 
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/gomail.v2"
 )
 
+func sendCancellationEmail(recipientEmail, cancel string) error {
+	m := gomail.NewMessage()
+	m.SetHeader("From", "gobusaswin@gmail.com")
+	m.SetHeader("To", recipientEmail)
+	m.SetHeader("Subject", "GoBus: Bus Cancelled")
+
+	m.SetBody("text/plain", "Message: "+cancel)
+
+	d := gomail.NewDialer("smtp.gmail.com", 587, "gobusaswin@gmail.com", "zfej mjdj hhzq lxve")
+
+	if err := d.DialAndSend(m); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AdminServiceImpl struct is used to Implement the Admin Service.
 type AdminServiceImpl struct {
 	repo repository.AdminRepository
 	jwt  *middleware.JwtUtil
+}
+
+// WhatsappNotifier function was added to notify the customer on bus cancellation, but will not notify via whatsapp only via sms.
+func WhatsappNotifier(messageText string, toNumber string) {
+
+	client := twilio.NewRestClient()
+	params := &api.CreateMessageParams{}
+	params.SetBody(messageText)
+	params.SetFrom("+15152001155")
+	// params.SetTo(toNumber)
+	params.SetTo(os.Getenv("MY_NUMBER"))
+
+	resp, err := client.Api.CreateMessage(params)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		if resp.Sid != nil {
+			fmt.Println(*resp.Sid)
+		} else {
+			fmt.Println(resp.Sid)
+		}
+	}
+}
+
+// CancelBus implements interfaces.AdminService.
+func (as *AdminServiceImpl) CancelBus(busID int, day string) (string, error) {
+	parsedDate, _ := time.Parse("02 01 2006", day)
+	chart, _ := as.repo.GetChart(busID, parsedDate)
+	if chart.Status != "Active" {
+		return "Bus was already in Inactive or Cancelled state", errors.New("bus already in inactive or cancelled state")
+	}
+	chart.Status = "Cancelled"
+	bookings, _ := as.repo.ViewBookingsToBeCancelled(busID, day)
+	result := make(chan error)
+	bus, _ := as.repo.GetBusInfo(busID)
+	schedule, _ := as.repo.GetRouteByBus(int(bus.ScheduleID))
+	for i := 0; i < len(bookings); i++ {
+		// if bookings[i].Status != "Success" {
+		// 	continue
+		// }
+		go func(booking *entities.Booking) {
+			defer close(result)
+			amount := booking.FarePostDiscount
+			user, _ := as.repo.FindUserByID(int(booking.UserID))
+			provider, _ := as.repo.FindProviderByID(int(bus.ProviderID))
+			user.UserWallet += int(amount)
+			provider.ProviderWallet -= int(amount)
+			booking.Status = "Cancelled by Admin"
+			if _, err := as.repo.UpdateProvider(provider); err != nil {
+				log.Println("Error updating the provider, in adminServiceImpl file")
+				result <- err
+			}
+			if _, err := as.repo.UpdateUser(user); err != nil {
+				log.Println("Error updating the user, in adminServiceImpl file")
+				result <- err
+			}
+			if _, err := as.repo.UpdateBooking(booking); err != nil {
+				log.Println("Error updating the booking, in adminServiceImpl file")
+				result <- err
+			}
+			message := fmt.Sprintf("The bus %d has been cancelled for the day %s due to unforeseen circumstances. Sorry for the inconvinience caused. Your amount has been refunded to your wallet. \n Booking Info \n Booking ID: %d \n UserID: %d \n UsedCouponID: %d \n Actual Fare: %d \n FarePostDiscount: %d \n BusID: %d \n Departure Location: %s \n Arrival Location: %s \n BookingDate: %s", busID, day, booking.BookingID, booking.UserID, booking.UsedCouponID, int(booking.ActualFare), int(booking.FarePostDiscount), booking.BusID, schedule.DepartureStation, schedule.ArrivalStation, booking.BookingDate)
+			if err := sendCancellationEmail(user.Email, message); err != nil {
+				log.Println("Error sending bus cancellation email, in adminServiceImpl file")
+				result <- err
+			}
+			fmt.Println(user.PhoneNumber)
+			WhatsappNotifier(message, user.PhoneNumber)
+			fmt.Printf("Email sent to %s \n", user.Email)
+			result <- nil
+		}(bookings[i])
+	}
+	for i := 0; i < len(bookings); i++ {
+		if err := <-result; err != nil {
+			log.Println("Error in goroutine:", err)
+			return "", err
+		}
+	}
+	if _, err := as.repo.UpdateChart(chart); err != nil {
+		log.Println("Error updating the schedule(chart), in adminServiceImpl file")
+		return "", err
+	}
+	response := fmt.Sprintf("Cancelled the bus %d scheduled for date %s", busID, day)
+	return response, nil
+}
+
+// ViewAllBookings implements interfaces.AdminService.
+func (as *AdminServiceImpl) ViewAllBookings() ([]*entities.Booking, error) {
+	bookings, err := as.repo.ViewAllBookings()
+	if err != nil {
+		log.Println("Error fetching the bookings, in adminServiceImpl file")
+		return nil, err
+	}
+	return bookings, nil
+}
+
+// ViewBookingsPerBus implements interfaces.AdminService.
+func (as *AdminServiceImpl) ViewBookingsPerBus(busID int, day string) ([]*entities.Booking, error) {
+	bookings, err := as.repo.ViewBookingsPerBus(busID, day)
+	if err != nil {
+		log.Println("Error fetching the bookings, in adminServiceImpl file")
+		return nil, err
+	}
+	return bookings, nil
 }
 
 // AddFareForRoute implements interfaces.AdminService.
@@ -129,7 +257,7 @@ func (as *AdminServiceImpl) FindAllUsers() ([]*entities.User, error) {
 
 // FindProvider implements interfaces.AdminService.
 func (as *AdminServiceImpl) FindProvider(id int) (*entities.ServiceProvider, error) {
-	provider, err := as.repo.FindProviderById(id)
+	provider, err := as.repo.FindProviderByID(id)
 	if err != nil {
 		log.Println("Error finding provider, in adminServiceImpl file")
 		return nil, err
@@ -139,7 +267,7 @@ func (as *AdminServiceImpl) FindProvider(id int) (*entities.ServiceProvider, err
 
 // FindStation implements interfaces.AdminService.
 func (as *AdminServiceImpl) FindStation(id int) (*entities.Stations, error) {
-	station, err := as.repo.FindStationById(id)
+	station, err := as.repo.FindStationByID(id)
 	if err != nil {
 		log.Println("Error finding station, in adminServiceImpl file")
 		return nil, err
@@ -159,7 +287,7 @@ func (as *AdminServiceImpl) FindStationByName(name string) (*entities.Stations, 
 
 // FindUser implements interfaces.AdminService.
 func (as *AdminServiceImpl) FindUser(id int) (*entities.User, error) {
-	user, err := as.repo.FindUserById(id)
+	user, err := as.repo.FindUserByID(id)
 	if err != nil {
 		log.Println("Error finding user, in adminServiceImpl file")
 		return nil, err
@@ -194,6 +322,8 @@ func (as *AdminServiceImpl) FindUser(id int) (*entities.User, error) {
 
 //		return token, nil
 //	}
+
+// Login function is used to log the user in to the application
 func (as *AdminServiceImpl) Login(loginRequest *dto.LoginRequest) (map[string]string, error) {
 	user, err := as.repo.FindUserByEmail(loginRequest.Email)
 	if err != nil {
@@ -275,6 +405,7 @@ func (as *AdminServiceImpl) UpdateUser(id int, user entities.User) (*entities.Us
 	return updatedUser, nil
 }
 
+// NewAdminService function return AdminServiceImpl of type AdminService interface
 func NewAdminService(repository repository.AdminRepository, jwt *middleware.JwtUtil) service.AdminService {
 	return &AdminServiceImpl{
 		repo: repository,
