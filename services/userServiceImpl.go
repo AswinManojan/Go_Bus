@@ -592,7 +592,7 @@ func (usi *UserServiceImpl) AddPassenger(passenger *entities.PassengerInfo, emai
 }
 
 // FindBus implements interfaces.UserService.
-func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.BusScheduleCombo, error) {
+func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.BusesResp, error) {
 	depart := request.DepartureStation
 	arrival := request.ArrivalStation
 	buses, err := usi.repo.FindBus(depart, arrival)
@@ -600,8 +600,8 @@ func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.BusSch
 		log.Println("No Buses EXISTS for this route, in userService file")
 		return nil, errors.New("no Bus exists")
 	}
+	var outbuses []*entities.BusesResp
 	if request.Duration != 0 {
-		var outbuses []*entities.BusScheduleCombo
 		for _, bus := range buses {
 			depart, _ := time.Parse("15:04:05", bus.DepartureTime)
 			arrive, _ := time.Parse("15:04:05", bus.ArrivalTime)
@@ -609,10 +609,16 @@ func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.BusSch
 				arrive = arrive.Add(24 * time.Hour)
 			}
 			if arrive.Sub(depart) <= time.Duration(request.Duration)*time.Hour {
-				outbuses = append(outbuses, bus)
+				b := &entities.BusesResp{}
+				b.BusID = bus.BusID
+				b.BusNumber = bus.BusNumber
+				b.BusTypeCode = bus.BusTypeCode
+				b.TotalPushBackSeats = bus.TotalPushBackSeats
+				b.TotalSleeperSeats = bus.TotalSleeperSeats
+				outbuses = append(outbuses, b)
 			}
 		}
-		buses = outbuses
+		// buses = outbuses
 		// return outbuses, nil
 	}
 	// if request.Price != 0 {
@@ -625,7 +631,7 @@ func (usi *UserServiceImpl) FindBus(request *dto.BusRequest) ([]*entities.BusSch
 
 	// 	}
 	// }
-	return buses, nil
+	return outbuses, nil
 }
 
 // Login function is used to login the user into the application
