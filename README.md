@@ -1,4 +1,4 @@
-# Bus Reservation App
+# GoBus Reservation App
 
 Welcome to the Bus Reservation app, a comprehensive solution that caters to the needs of users, bus service providers, and app administrators. This application facilitates seamless bus reservations, providing a user-friendly experience for all stakeholders.
 
