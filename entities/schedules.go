@@ -2,7 +2,7 @@ package entities
 
 // Schedule struct is used to store the informations related to the schedule of buses.
 type Schedule struct {
-	Buses            Buses    `gorm:"foreignKey:ScheduleID;references:ScheduleID"`
+	// Buses            Buses    `gorm:"foreignKey:ScheduleID;references:ScheduleID"`
 	BaseFare         BaseFare `gorm:"foreignKey:ScheduleID;references:ScheduleID"`
 	ScheduleID       uint     `json:"id" gorm:"primaryKey;autoIncrement"`
 	DepartureStation string   `json:"depart" gorm:"not null" validate:"required"`

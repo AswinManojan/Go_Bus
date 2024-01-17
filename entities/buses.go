@@ -2,7 +2,7 @@ package entities
 
 // Buses struct is used to store the information related to the buses.
 type Buses struct {
-	BusSchedule        BusSchedule `gorm:"foreignKey:BusID;references:BusID"`
+	// BusSchedule        BusSchedule `gorm:"foreignKey:BusID;references:BusID"`
 	BusID              uint        `json:"bus_id" gorm:"primaryKey; autoIncrement"`
 	BusNumber          string      `json:"bus_number" gorm:"unique" validate:"required"`
 	TotalSleeperSeats  uint

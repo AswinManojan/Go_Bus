@@ -2,7 +2,7 @@ package entities
 
 // User struct is used to store the informations of User data
 type User struct {
-	PassengerInfo PassengerInfo `gorm:"foreignKey:UserID;references:ID"`
+	// PassengerInfo PassengerInfo `gorm:"foreignKey:UserID;references:ID"`
 	ID          uint   `json:"id" gorm:"primaryKey;autoIncrement"`
 	Email       string `json:"email" gorm:"unique" validate:"required"`
 	UserName    string `json:"username" gorm:"not null" validate:"required"`

@@ -2,7 +2,7 @@ package entities
 
 // ServiceProvider struct is used to store the details of bus service provider.
 type ServiceProvider struct {
-	Buses          Buses  `gorm:"foreignKey:ProviderID;references:ProviderID"`
+	// Buses          Buses  `gorm:"foreignKey:ProviderID;references:ProviderID"`
 	ProviderID     uint   `json:"providerid" gorm:"primaryKey; autoIncrement"`
 	Email          string `json:"email" gorm:"unique" validate:"required"`
 	CompanyName    string `json:"company" gorm:"not null" validate:"required"`
